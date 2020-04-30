@@ -28,6 +28,8 @@ in :
 ~~~ \
 [RxLocal]
 ...  
+#SQL_DET=GPIO  
+#GPIO_SQL_PIN=!gpio20  
 SQL_DET=PTY  
 PTY_PATH=/tmp/sql  
 ...  
