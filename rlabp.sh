@@ -1,7 +1,7 @@
 #!/bin/bash
-# Script anti abuz pe NET/RF
+# Script anti abuz pe NET/RF - YO6NAM
 
-# Set your limits below
+# Set your limits below (bantime in seconds)
 max_rf_ptt=4
 max_net_ptt=10
 bantime=1800

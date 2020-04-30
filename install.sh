@@ -1,10 +1,9 @@
 #!/bin/bash
+# Install script
 
-chmod +x rlabp.sh && cp rlabp.sh /opt/rolink/scripts
-cp rlabp /etc/cron.d
-cp /opt/rolink/conf/svxlink.conf /opt/rolink/conf/svxlinknorx.conf
+cp rlabp.sh /opt/rolink/scripts && cp rlabp /etc/cron.d && cp /opt/rolink/conf/svxlink.conf /opt/rolink/conf/svxlinknorx.conf
 read -p "Press [Enter] to open the clone configuration for editing"
-nano /opt/rolink/conf/svxlinknorx.conf
-service cron restart
+sudo nano /opt/rolink/conf/svxlinknorx.conf
+sudo service cron restart
 read -p "Done! Press [Enter] to quit."
 exit 1
