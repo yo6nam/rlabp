@@ -15,7 +15,7 @@ $cd rlabp
 $./install.sh  
 ~~~
   
-Modificare fisierului clona de configurare presupune modificarea liniilor din : 
+Modificare fisierului clona de configurare (svxlinknorx.conf) presupune modificarea liniilor din : 
 ~~~ \
 [RxLocal]
 ...  
@@ -34,3 +34,5 @@ SQL_DET=PTY
 PTY_PATH=/tmp/sql  
 ...  
 ~~~
+  
+Dupa instalare nu este nevoie de alte interventii, scriptul fiind accesat prin cron la fiecare 15 secunde.  
