@@ -37,3 +37,10 @@ PTY_PATH=/tmp/sql
 ~~~
   
 Dupa instalare nu este nevoie de alte interventii, scriptul fiind accesat prin cron la fiecare 15 secunde.  
+## Trigger extern
+Logica de comutare in modul 'TX Only/Operare normala' poate fi comandata si din surse externe, consola, cron, etc.
+Argumentul poate fi 0 (Normal), 1 (TX Only) sau 2 (deblocare trafic nod<->reflector)  
+~~~
+$/opt/rolink/scripts/rlabp.sh 0|1|2
+~~~
+Aceasta metoda poate fi folosita daca se doreste integrarea cu [phpKontrol](https://github.com/yo6nam/phpKontrol) dar si pastrarea protectiei automata.  
