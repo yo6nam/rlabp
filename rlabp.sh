@@ -5,6 +5,7 @@
 max_rf_ptt=4
 max_net_ptt=10
 bantime=1800
+reflector=reflector.439100.ro,rolink.rolink-net.ro,svx.dstar-yo.ro
 
 # Begin, nothing to edit below
 rf_ptt_bc=$(tail -22 /tmp/svxlink.log | grep -c "OPEN")
@@ -23,7 +24,7 @@ elif [ $rf_ptt_bt -gt 1 ]; then
 	logger "ABP Normal C:$rf_ptt_bc/T:$rf_ptt_bt"
 elif [ "$1" = "2" ]; then
 	rm -f /tmp/rolink.flg
-	sudo /sbin/iptables -D INPUT -s reflector.439100.ro,rolink.rolink-net.ro -j DROP
+	sudo /sbin/iptables -D INPUT -s $reflector -j DROP
 	cat /dev/null > /tmp/svxlink.log
 	/opt/rolink/scripts/rolink-start.sh
 	exit 1
@@ -51,14 +52,14 @@ fi
 
 if [ ! -f /tmp/rolink.flg ] && [ $net_ptt -gt $max_net_ptt ]; then
 	touch /tmp/rolink.flg
-	sudo /sbin/iptables -I INPUT -s reflector.439100.ro,rolink.rolink-net.ro -j DROP
+	sudo /sbin/iptables -I INPUT -s $reflector -j DROP
 	/opt/rolink/rolink-start.sh
 	logger -p User.alert "Abuse from network detected ($net_ptt), blocking traffic."
 fi
 
 if [ -f /tmp/rolink.flg ] && [ "$(( $(date +"%s") - $(stat -c "%Y" /tmp/rolink.flg) ))" -gt $bantime ]; then
 	rm -f /tmp/rolink.flg
-	sudo /sbin/iptables -D INPUT -s reflector.439100.ro,rolink.rolink-net.ro -j DROP
+	sudo /sbin/iptables -D INPUT -s $reflector -j DROP
 	cat /dev/null > /tmp/svxlink.log
 	/opt/rolink/scripts/rolink-start.sh
 fi
