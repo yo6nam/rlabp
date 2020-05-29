@@ -22,7 +22,18 @@ elif [ $rf_ptt_bt -gt $max_rf_ptt ] && [ !$abuse ]; then
 	abuse=$(($rf_ptt_bt));
 elif [ $rf_ptt_bt -gt 1 ]; then
 	logger "ABP Normal C:$rf_ptt_bc/T:$rf_ptt_bt"
+elif [ "$1" = "9" ]; then
+	logger -p User.alert "External trigger, reboot."
+	sudo reboot -f
+	exit 1
+elif [ "$1" = "3" ]; then
+	logger -p User.alert "External trigger, blocking traffic."
+	touch /tmp/rolink.flg
+	sudo /sbin/iptables -I INPUT -s $reflector -j DROP
+	/opt/rolink/rolink-start.sh
+	exit 1
 elif [ "$1" = "2" ]; then
+	logger -p User.alert "External trigger, unblocking traffic."
 	rm -f /tmp/rolink.flg
 	sudo /sbin/iptables -D INPUT -s $reflector -j DROP
 	cat /dev/null > /tmp/svxlink.log
@@ -37,6 +48,7 @@ elif [ "$1" = "1" ]; then
 	exit 1
 elif [ "$1" = "0" ]; then
 	logger -p User.alert "External trigger, switching to Normal Operation."
+	sudo /sbin/iptables -D INPUT -s $reflector -j DROP
 	rm -f /tmp/rolink.flg && cat /dev/null > /tmp/svxlink.log
 	/opt/rolink/scripts/rolink-start.sh
 	exit 1
