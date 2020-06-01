@@ -24,7 +24,7 @@ elif [ $rf_ptt_bt -gt 1 ]; then
 	logger "ABP Normal C:$rf_ptt_bc/T:$rf_ptt_bt"
 elif [ "$1" = "s" ]; then
 	logger -p User.alert "External trigger, service mode."
-	sudo poff -a && sleep 3 && sudo pon rlcfg
+	sudo poff -a; sleep 2 && sudo pon rlcfg
 	exit 1
 elif [ "$1" = "9" ]; then
 	logger -p User.alert "External trigger, reboot."
