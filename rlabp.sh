@@ -46,6 +46,7 @@ elif [ "$1" = "3" ]; then
 	exit 1
 elif [ "$1" = "2" ]; then
 	logger -p User.alert "External trigger, unblocking traffic."
+	echo "1" > /tmp/rlpt
 	rm -f /tmp/rolink.flg
 	sudo /sbin/iptables -D INPUT -s $reflector -j DROP
 	cat /dev/null > /tmp/svxlink.log
@@ -61,6 +62,7 @@ elif [ "$1" = "1" ]; then
 	exit 1
 elif [ "$1" = "0" ]; then
 	logger -p User.alert "External trigger, switching to Normal Operation."
+	echo "1" > /tmp/rlpt
 	sudo /sbin/iptables -D INPUT -s $reflector -j DROP
 	rm -f /tmp/rolink.flg && cat /dev/null > /tmp/svxlink.log
 	/opt/rolink/scripts/rolink-start.sh
