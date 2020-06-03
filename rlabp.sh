@@ -38,7 +38,7 @@ elif [ "$1" = "9" ]; then
 	sudo reboot -f
 	exit 1
 elif [ "$1" = "3" ]; then
-	logger -p User.alert "External trigger, blocking traffic."
+	logger -p User.alert "External trigger, blocking traffic for $ext_trig_btm minutes."
 	touch /tmp/rolink.flg
 	sudo /sbin/iptables -I INPUT -s $reflector -j DROP
 	echo $ext_trig_btm > /tmp/rlpt
@@ -53,7 +53,7 @@ elif [ "$1" = "2" ]; then
 	/opt/rolink/scripts/rolink-start.sh
 	exit 1
 elif [ "$1" = "1" ]; then
-	logger -p User.alert "External trigger, switching to TX only mode."
+	logger -p User.alert "External trigger, switching to TX only mode for $ext_trig_btm minutes."
 	echo $ext_trig_btm > /tmp/rlpt
 	[ "$(pidof svxlink)" != "" ] && killall -v svxlink && sleep 1
 	/opt/rolink/bin/svxlink --daemon --config=/opt/rolink/conf/svxlinknorx.conf --logfile=/tmp/svxlink.log \
@@ -70,8 +70,8 @@ elif [ "$1" = "0" ]; then
 fi
 
 if [ $abuse ]; then
-	logger -p User.alert "Abuse from RF detected ($abuse PTTs within 20 seconds)."
 	echo $(($(cat /tmp/rlpt) + 5 )) > /tmp/rlpt
+	logger -p User.alert "Abuse from RF detected ($abuse PTTs within 20 seconds). RX disabled for $((($(cat /tmp/rlpt) * 60) / 60)) minutes."
 	[ "$(pidof svxlink)" != "" ] && killall -v svxlink && sleep 3
 	/opt/rolink/bin/svxlink --daemon --config=/opt/rolink/conf/svxlinknorx.conf --logfile=/tmp/svxlink.log \
 	--runasuser=svxlink --pidfile=/var/run/svxlink.pid
@@ -82,7 +82,7 @@ if [ ! -f /tmp/rolink.flg ] && [ $net_ptt -gt $max_net_ptt ]; then
 	touch /tmp/rolink.flg
 	sudo /sbin/iptables -I INPUT -s $reflector -j DROP
 	/opt/rolink/rolink-start.sh
-	logger -p User.alert "Abuse from network detected ($net_ptt), blocking traffic."
+	logger -p User.alert "Abuse from network detected ($net_ptt), blocking traffic for $((($(cat /tmp/rlpt) * 60) / 60)) minutes."
 fi
 
 if [ -f /tmp/rolink.flg ] && [ "$(( $(date +"%s") - $(stat -c "%Y" /tmp/rolink.flg) ))" -gt $bantime ]; then
