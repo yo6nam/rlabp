@@ -71,7 +71,8 @@ fi
 
 if [ $abuse ]; then
 	echo $(($(cat /tmp/rlpt) + 5 )) > /tmp/rlpt
-	logger -p User.alert "Abuse from RF detected ($abuse PTTs within 20 seconds). RX disabled for $((($(cat /tmp/rlpt) * 60) / 60)) minutes."
+	logger -p User.alert "Abuse from RF detected ($abuse PTTs within 20 seconds). \
+	RX disabled for $((($(cat /tmp/rlpt) * 60) / 60)) minutes."
 	[ "$(pidof svxlink)" != "" ] && killall -v svxlink && sleep 3
 	/opt/rolink/bin/svxlink --daemon --config=/opt/rolink/conf/svxlinknorx.conf --logfile=/tmp/svxlink.log \
 	--runasuser=svxlink --pidfile=/var/run/svxlink.pid
@@ -82,7 +83,8 @@ if [ ! -f /tmp/rolink.flg ] && [ $net_ptt -gt $max_net_ptt ]; then
 	touch /tmp/rolink.flg
 	sudo /sbin/iptables -I INPUT -s $reflector -j DROP
 	/opt/rolink/rolink-start.sh
-	logger -p User.alert "Abuse from network detected ($net_ptt), blocking traffic for $((($(cat /tmp/rlpt) * 60) / 60)) minutes."
+	logger -p User.alert "Abuse from network detected ($net_ptt), \
+	blocking traffic for $((($(cat /tmp/rlpt) * 60) / 60)) minutes."
 fi
 
 if [ -f /tmp/rolink.flg ] && [ "$(( $(date +"%s") - $(stat -c "%Y" /tmp/rolink.flg) ))" -gt $bantime ]; then
