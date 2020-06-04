@@ -36,7 +36,10 @@ PTY_PATH=/tmp/sql
 ...  
 ~~~
   
-Dupa instalare nu este nevoie de alte interventii, scriptul fiind accesat prin cron la fiecare 15 secunde.  
+Dupa instalare nu este nevoie de alte interventii, scriptul fiind instalat ca serviciu. Statusul lui poate fi verificat prin comanda
+~~~
+$systemctl status rlabp
+~~~
 ## Trigger extern
 Logica de comutare in modul 'TX Only/Operare normala' poate fi comandata si din surse externe, consola, cron, etc.
 Argumentul poate fi 0 (Normal), 1 (TX Only), 2 (deblocare trafic nod<->reflector), 3 (blocare trafic nod<->reflector), 9 (reboot) si s (service mode / cerere conectare VPN catre server)
