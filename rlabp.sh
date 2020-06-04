@@ -31,7 +31,7 @@ if [ $rf_ptt_bc -gt $max_rf_ptt ]; then
 	abuse=$(($rf_ptt_bc));
 elif [ $rf_ptt_bt -gt $max_rf_ptt ] && [ !$abuse ]; then
 	abuse=$(($rf_ptt_bt));
-elif [ $rf_ptt_bc -gt 2 ] || [ $net_ptt -gt 5 ]; then
+elif [ $rf_ptt_bc -gt 3 ] || [ $net_ptt -gt 9 ]; then
 	logger "RLABP status Count: $rf_ptt_bc / Timed: $rf_ptt_bt / Net: $net_ptt"
 fi
 
@@ -60,7 +60,7 @@ elif [ "$1" = "2" ]; then
 	/opt/rolink/scripts/rolink-start.sh
 	exit 1
 elif [ "$1" = "1" ]; then
-	logger -p User.alert "External trigger, switching to TX only mode for $ext_trig_btm minutes."
+	logger -p User.alert "External trigger, switching to <<TX Only>> mode for $ext_trig_btm minutes."
 	echo $ext_trig_btm > /tmp/rlpt
 	[ "$(pidof svxlink)" != "" ] && killall -v svxlink && sleep 1
 	/opt/rolink/bin/svxlink --daemon --config=/opt/rolink/conf/svxlinknorx.conf --logfile=/tmp/svxlink.log \
@@ -76,24 +76,26 @@ elif [ "$1" = "0" ]; then
 	exit 1
 fi
 
+# Disable RX
 if [ $abuse ]; then
 	echo $(($(cat /tmp/rlpt) + 5 )) > /tmp/rlpt
-	logger -p User.alert "Abuse from RF detected ($abuse PTTs within 20 seconds). \
-	RX disabled for $((($(cat /tmp/rlpt) * 60) / 60)) minutes."
+	logger -p User.alert "Abuse from RF detected ($abuse PTTs within 20 seconds). <<RX disabled>> for $((($(cat /tmp/rlpt) * 60) / 60)) minutes."
 	[ "$(pidof svxlink)" != "" ] && killall -v svxlink && sleep 3
 	/opt/rolink/bin/svxlink --daemon --config=/opt/rolink/conf/svxlinknorx.conf --logfile=/tmp/svxlink.log \
 	--runasuser=svxlink --pidfile=/var/run/svxlink.pid
 	cat /dev/null > /tmp/svxlink.log && touch /tmp/rolink.flg
+	unset abuse
 fi
 
+# Disable traffic
 if [ ! -f /tmp/rolink.flg ] && [ $net_ptt -gt $max_net_ptt ]; then
 	touch /tmp/rolink.flg
 	sudo /sbin/iptables -I INPUT -s $reflector -j DROP
 	/opt/rolink/rolink-start.sh
-	logger -p User.alert "Abuse from network detected ($net_ptt), \
-	blocking traffic for $((($(cat /tmp/rlpt) * 60) / 60)) minutes."
+	logger -p User.alert "Abuse from network detected ($net_ptt), <<blocking traffic>> for $((($(cat /tmp/rlpt) * 60) / 60)) minutes."
 fi
 
+# Reset the timer
 if [ -f /tmp/rolink.flg ] && [ "$(( $(date +"%s") - $(stat -c "%Y" /tmp/rolink.flg) ))" -gt $bantime ]; then
 	rm -f /tmp/rolink.flg
 	sudo /sbin/iptables -D INPUT -s $reflector -j DROP
@@ -101,6 +103,7 @@ if [ -f /tmp/rolink.flg ] && [ "$(( $(date +"%s") - $(stat -c "%Y" /tmp/rolink.f
 	/opt/rolink/scripts/rolink-start.sh
 fi
 
+# Reset the penalty multiplication factor
 if [ -f /tmp/rlpt ] && [ "$(( $(date +"%s") - $(stat -c "%Y" /tmp/rlpt) ))" -gt 3600 ]; then
 	echo "1" > /tmp/rlpt
 fi
