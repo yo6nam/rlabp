@@ -88,7 +88,6 @@ if [ $abuse ]; then
 	--runasuser=$run_as --pidfile=/var/run/svxlink.pid
 	cat /dev/null > /tmp/svxlink.log && touch /tmp/rolink.flg
 	unset abuse
-	echo $(($(cat /tmp/rlpt) + 5 )) > /tmp/rlpt
 fi
 
 # Disable traffic
@@ -99,12 +98,13 @@ if [ ! -f /tmp/rolink.flg ] && [ $net_ptt -gt $max_net_ptt ]; then
 	logger -p User.alert "Abuse from network detected ($net_ptt), <<blocking traffic>> for $((($(cat /tmp/rlpt) * 60) / 60)) minutes."
 fi
 
-# Reset the timer
+# Reset the timer / Increment the penalty by 5 minutes
 if [ -f /tmp/rolink.flg ] && [ "$(( $(date +"%s") - $(stat -c "%Y" /tmp/rolink.flg) ))" -gt $bantime ]; then
 	rm -f /tmp/rolink.flg
 	sudo /sbin/iptables -D INPUT -s $reflector -j DROP
 	cat /dev/null > /tmp/svxlink.log
 	/opt/rolink/scripts/rolink-start.sh
+	echo $(($(cat /tmp/rlpt) + 5 )) > /tmp/rlpt
 fi
 
 # Reset the penalty multiplication factor
