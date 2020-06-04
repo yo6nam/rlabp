@@ -1,5 +1,5 @@
 #!/bin/bash
-# Script anti abuz pe NET/RF & external trigger & penalizare progresiva - YO6NAM
+# Serviciu anti-abuz dinspre RF/retea & activare externa & penalizare progresiva - YO6NAM
 
 # Set your limits below (ext_trig_btm sets the value in minutes for external trigger events)
 max_rf_ptt=4
@@ -8,7 +8,10 @@ reflector=reflector.439100.ro,rolink.rolink-net.ro,svx.dstar-yo.ro
 ext_trig_btm=10
 
 # Begin, nothing to edit below
-rf_ptt_bc=$(tail -22 /tmp/svxlink.log | grep -c "OPEN")
+while true
+do
+# Start the loop
+rf_ptt_bc=$(tail -20 /tmp/svxlink.log | grep -c "OPEN")
 rf_ptt_bt=$(awk -v d1="$(date --date="-20 sec" "+%Y-%m-%d %H:%M:%S:")" \
 -v d2="$(date "+%Y-%m-%d %H:%M:%S:")" '$0 > d1 && $0 < d2 || $0 ~ d2' \
 /tmp/svxlink.log | grep -c "OPEN")
@@ -27,8 +30,8 @@ if [ $rf_ptt_bc -gt $max_rf_ptt ]; then
 	abuse=$(($rf_ptt_bc));
 elif [ $rf_ptt_bt -gt $max_rf_ptt ] && [ !$abuse ]; then
 	abuse=$(($rf_ptt_bt));
-elif [ $rf_ptt_bt -gt 1 ]; then
-	logger "ABP Normal C:$rf_ptt_bc/T:$rf_ptt_bt"
+elif [ $rf_ptt_bt -gt 2] && [ $net_ptt -gt 5]; then
+	logger "RLABP status Count:$rf_ptt_bc/Timed:$rf_ptt_bt/Net:$net_ptt"
 elif [ "$1" = "s" ]; then
 	logger -p User.alert "External trigger, service mode."
 	sudo poff -a; sleep 2 && sudo pon rlcfg
@@ -97,3 +100,7 @@ fi
 if [ -f /tmp/rlpt ] && [ "$(( $(date +"%s") - $(stat -c "%Y" /tmp/rlpt) ))" -gt 3600 ]; then
 	echo "1" > /tmp/rlpt
 fi
+
+# End loop
+sleep 1
+done

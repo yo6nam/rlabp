@@ -1,13 +1,38 @@
 #!/bin/bash
 
+echo "[Unit]
+Description=RoLink Abuse Protection Service
+After=syslog.target network.target
+
+[Service]
+User=root
+Type=simple
+ExecStart=/opt/rolink/scripts/rlabp.sh
+Restart=always
+RestartSec=30
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target" > rlabp.service
+
 if [ ! -f /opt/rolink/conf/svxlinknorx.conf ]; then
-	cp rlabp.sh /opt/rolink/scripts && cp rlabp /etc/cron.d && cp /opt/rolink/conf/svxlink.conf /opt/rolink/conf/svxlinknorx.conf
+	cp rlabp.sh /opt/rolink/scripts && cp /opt/rolink/conf/svxlink.conf /opt/rolink/conf/svxlinknorx.conf
 	read -p "Press [Enter] to open the clone configuration for editing"
         sudo nano /opt/rolink/conf/svxlinknorx.conf
-        sudo service cron restart
+	mv rlabp.service /lib/systemd/system
+	sudo systemctl daemon-reload && systemctl enable rlabp.service && systemctl start rlabp
         read -p "Done! Press [Enter] to quit."
         exit 1
-else
+elif [ -f /lib/systemd/system/rlabp.service ]; then
         read -p "Previous installation detected. Press [Enter] to upgrade the script."
-        cp -rf rlabp.sh /opt/rolink/scripts
+        cp -rf rlabp.sh /opt/rolink/scripts && systemctl restart rlabp && rm -f rlabp.service
+elif [ ! -f /lib/systemd/system/rlabp.service ]; then
+	read -p "Cron based installation detected. Press [Enter] to upgrade the script and install the service."
+	cp -rf rlabp.service /lib/systemd/system && rm -f rlabp.service
+	sudo systemctl daemon-reload && systemctl enable rlabp.service && systemctl start rlabp
+fi
+
+if [ -f /etc/cron.d/rlabp ]; then
+	rm -f /etc/cron.d/rlabp && sudo service cron restart
+	echo "Cron based version removed."
 fi

@@ -1,5 +1,0 @@
-# RoLink ABP loop @ 15sec
-* * * * * root /opt/rolink/scripts/rlabp.sh
-* * * * * root ( sleep 15; /opt/rolink/scripts/rlabp.sh )
-* * * * * root ( sleep 30; /opt/rolink/scripts/rlabp.sh )
-* * * * * root ( sleep 45; /opt/rolink/scripts/rlabp.sh )
