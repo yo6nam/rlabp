@@ -30,7 +30,7 @@ if [ $rf_ptt_bc -gt $max_rf_ptt ]; then
 	abuse=$(($rf_ptt_bc));
 elif [ $rf_ptt_bt -gt $max_rf_ptt ] && [ !$abuse ]; then
 	abuse=$(($rf_ptt_bt));
-elif [ $rf_ptt_bt -gt 2] && [ $net_ptt -gt 5]; then
+elif [ $rf_ptt_bt -gt 2 ] && [ $net_ptt -gt 5 ]; then
 	logger "RLABP status Count:$rf_ptt_bc/Timed:$rf_ptt_bt/Net:$net_ptt"
 elif [ "$1" = "s" ]; then
 	logger -p User.alert "External trigger, service mode."
