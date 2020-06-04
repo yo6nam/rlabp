@@ -10,6 +10,7 @@ ext_trig_btm=10
 # Begin, nothing to edit below
 while true
 do
+
 # Start the loop
 rf_ptt_bc=$(tail -20 /tmp/svxlink.log | grep -c "OPEN")
 rf_ptt_bt=$(awk -v d1="$(date --date="-20 sec" "+%Y-%m-%d %H:%M:%S:")" \
@@ -23,16 +24,19 @@ net_ptt=$(awk -v d1="$(date --date="-30 sec" "+%Y-%m-%d %H:%M:%S:")" \
 if [ ! -f /tmp/rlpt ]; then
     echo "1" > /tmp/rlpt
 fi
-
 bantime=$(($(cat /tmp/rlpt) * 60))
 
+# Abuse check / status
 if [ $rf_ptt_bc -gt $max_rf_ptt ]; then
 	abuse=$(($rf_ptt_bc));
 elif [ $rf_ptt_bt -gt $max_rf_ptt ] && [ !$abuse ]; then
 	abuse=$(($rf_ptt_bt));
-elif [ $rf_ptt_bt -gt 2 ] && [ $net_ptt -gt 5 ]; then
-	logger "RLABP status Count:$rf_ptt_bc/Timed:$rf_ptt_bt/Net:$net_ptt"
-elif [ "$1" = "s" ]; then
+elif [ $rf_ptt_bc -gt 2 ] || [ $net_ptt -gt 5 ]; then
+	logger "RLABP status Count: $rf_ptt_bc / Timed: $rf_ptt_bt / Net: $net_ptt"
+fi
+
+# External triggers
+if [ "$1" = "s" ]; then
 	logger -p User.alert "External trigger, service mode."
 	sudo poff -a; sleep 2 && sudo pon rlcfg
 	exit 1
