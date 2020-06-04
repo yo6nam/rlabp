@@ -29,7 +29,8 @@ elif [ -f /lib/systemd/system/rlabp.service ]; then
 elif [ ! -f /lib/systemd/system/rlabp.service ]; then
 	read -p "Cron based installation detected. Press [Enter] to upgrade the script and install the service."
 	cp -rf rlabp.service /lib/systemd/system && rm -f rlabp.service
-	sudo systemctl daemon-reload && systemctl enable rlabp.service && systemctl start rlabp
+	cp -rf rlabp.sh /opt/rolink/scripts && sudo systemctl daemon-reload &&\
+	systemctl enable rlabp.service && systemctl start rlabp
 fi
 
 if [ -f /etc/cron.d/rlabp ]; then
