@@ -6,6 +6,8 @@ max_rf_ptt=4
 max_net_ptt=10
 reflector=reflector.439100.ro,rolink.rolink-net.ro,svx.dstar-yo.ro
 ext_trig_btm=10
+run_as=svxlink # change to root where needed
+debug=false # set to 'true' if you want cu check the timers
 
 # Begin, nothing to edit below
 while true
@@ -63,8 +65,9 @@ elif [ "$1" = "1" ]; then
 	logger -p User.alert "External trigger, switching to <<TX Only>> mode for $ext_trig_btm minutes."
 	echo $ext_trig_btm > /tmp/rlpt
 	[ "$(pidof svxlink)" != "" ] && killall -v svxlink && sleep 1
+	export LD_LIBRARY_PATH="/opt/rolink/lib"
 	/opt/rolink/bin/svxlink --daemon --config=/opt/rolink/conf/svxlinknorx.conf --logfile=/tmp/svxlink.log \
-	--runasuser=svxlink --pidfile=/var/run/svxlink.pid
+	--runasuser=$run_as --pidfile=/var/run/svxlink.pid
 	cat /dev/null > /tmp/svxlink.log && touch /tmp/rolink.flg
 	exit 1
 elif [ "$1" = "0" ]; then
@@ -78,13 +81,14 @@ fi
 
 # Disable RX
 if [ $abuse ]; then
-	echo $(($(cat /tmp/rlpt) + 5 )) > /tmp/rlpt
 	logger -p User.alert "Abuse from RF detected ($abuse PTTs within 20 seconds). <<RX disabled>> for $((($(cat /tmp/rlpt) * 60) / 60)) minutes."
 	[ "$(pidof svxlink)" != "" ] && killall -v svxlink && sleep 3
+	export LD_LIBRARY_PATH="/opt/rolink/lib"
 	/opt/rolink/bin/svxlink --daemon --config=/opt/rolink/conf/svxlinknorx.conf --logfile=/tmp/svxlink.log \
-	--runasuser=svxlink --pidfile=/var/run/svxlink.pid
+	--runasuser=$run_as --pidfile=/var/run/svxlink.pid
 	cat /dev/null > /tmp/svxlink.log && touch /tmp/rolink.flg
 	unset abuse
+	echo $(($(cat /tmp/rlpt) + 5 )) > /tmp/rlpt
 fi
 
 # Disable traffic
@@ -106,6 +110,13 @@ fi
 # Reset the penalty multiplication factor
 if [ -f /tmp/rlpt ] && [ "$(( $(date +"%s") - $(stat -c "%Y" /tmp/rlpt) ))" -gt 3600 ]; then
 	echo "1" > /tmp/rlpt
+fi
+
+if $debug; then
+	logger "D: Count: $rf_ptt_bc / Timed: $rf_ptt_bt / Net: $net_ptt, Ban time set to $((($(cat /tmp/rlpt) * 60) / 60)) minutes, Penalty factor is $(cat /tmp/rlpt)"
+	if [ -f /tmp/rolink.flg ]; then
+		logger "D: Flag is $(( $(date +"%s") - $(stat -c "%Y" /tmp/rolink.flg) )) seconds old."
+	fi
 fi
 
 # End loop
