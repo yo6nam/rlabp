@@ -41,11 +41,11 @@ fi
 # External triggers
 etmsg="External trigger,"
 if [ "$1" = "s" ]; then
-	logger -p user.alert "$etmsg service mode."
+	logger -p user.alert "$etmsg [SERVICE-MODE]."
 	poff -a; sleep 2 && pon rlcfg
 	exit 1
 elif [ "$1" = "9" ]; then
-	logger -p user.alert "$etmsg reboot."
+	logger -p user.alert "$etmsg [REBOOT]."
 	reboot -f
 	exit 1
 elif [ "$1" = "3" ]; then
@@ -55,7 +55,7 @@ elif [ "$1" = "3" ]; then
 	/opt/rolink/rolink-start.sh
 	exit 1
 elif [ "$1" = "2" ]; then
-	logger -p user.alert "$etmsg unblocking traffic."
+	logger -p user.alert "$etmsg [TRAFFIC-UNBLOCK]."
 	rm -f /tmp/rolink.flg; rm -f /tmp/rlpt;
 	/sbin/iptables -D INPUT -s $reflector -j DROP
 	cat /dev/null > /tmp/svxlink.log
@@ -63,12 +63,11 @@ elif [ "$1" = "2" ]; then
 	exit 1
 elif [ "$1" = "1" ]; then
 	logger -p user.alert "$etmsg switching to [TX-ONLY] mode for $ext_trig_btm minutes."
-	echo $ext_trig_btm > /tmp/rlpt
+	touch /tmp/rolink.flg; echo $ext_trig_btm > /tmp/rlpt; cat /dev/null > /tmp/svxlink.log
 	[ "$(pidof svxlink)" != "" ] && killall -v svxlink && sleep 1
 	export LD_LIBRARY_PATH="/opt/rolink/lib"
 	/opt/rolink/bin/svxlink --daemon --config=/opt/rolink/conf/svxlinknorx.conf --logfile=/tmp/svxlink.log \
 	--runasuser=$run_as --pidfile=/var/run/svxlink.pid
-	cat /dev/null > /tmp/svxlink.log && touch /tmp/rolink.flg
 	exit 1
 elif [ "$1" = "0" ]; then
 	logger -p user.alert "$etmsg switching to [NORMAL-OPERATION]."
@@ -81,11 +80,11 @@ fi
 # Disable RX
 if [ $abuse ]; then
 	logger -p user.alert "Abuse from RF detected ($abuse PTTs within 20 seconds). [TX-ONLY] for $((($(cat /tmp/rlpt) * 60) / 60)) minutes."
+	touch /tmp/rolink.flg; cat /dev/null > /tmp/svxlink.log
 	[ "$(pidof svxlink)" != "" ] && killall -v svxlink && sleep 2
 	export LD_LIBRARY_PATH="/opt/rolink/lib"
 	/opt/rolink/bin/svxlink --daemon --config=/opt/rolink/conf/svxlinknorx.conf --logfile=/tmp/svxlink.log \
 	--runasuser=$run_as --pidfile=/var/run/svxlink.pid
-	cat /dev/null > /tmp/svxlink.log && touch /tmp/rolink.flg
 	unset abuse
 fi
 
@@ -111,7 +110,7 @@ fi
 
 # Start debug if enabled
 if $debug; then
-	dmsg="D: (PTT) Count: $rf_ptt_bc / Timed: $rf_ptt_bt / Net: $net_ptt"
+	dmsg="[RLABP Debug]: (PTT) Count: $rf_ptt_bc / Timed: $rf_ptt_bt / Net: $net_ptt"
 	dmsg+=", Ban time: $((($(cat /tmp/rlpt) * 60) / 60)) min"
 	if [ $(cat /tmp/rlpt) -gt 1 ]; then
 		pft=$(( $(date +"%s") - $(stat -c "%Y" /tmp/rlpt) ))
