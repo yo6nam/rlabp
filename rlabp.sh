@@ -1,20 +1,22 @@
 #!/bin/bash
-# Serviciu anti-abuz dinspre RF/retea & activare externa & penalizare progresiva - YO6NAM
+# Serviciu anti-abuz dinspre RF/retea & activare externa & penalizare progresiva
+# https://github.com/yo6nam/rlabp
 
-# Set your limits below (ext_trig_btm sets the value in minutes for external trigger events)
-max_rf_ptt=4
-max_net_ptt=10
+# Set your options below
+max_rf_ptt=4		# RF side
+max_net_ptt=10		# Network side
 reflector=reflector.439100.ro,rolink.rolink-net.ro,svx.dstar-yo.ro
-ext_trig_btm=10
-run_as=svxlink # change to root where needed
-debug=false # set to 'true' if you want cu check the timers
+ext_trig_btm=10		# Ban time value (minutes) for external triggered events
+pf_reset=3600		# Reset the penalty factor after how many seconds?
+run_as=svxlink		# change to root where needed
+debug=false		# 'true' if you want cu check the timers
 
 # Begin, nothing to edit below
 while true
 do
 
 # Start the loop
-rf_ptt_bc=$(tail -20 /tmp/svxlink.log | grep -c "OPEN")
+rf_ptt_bc=$(tail -22 /tmp/svxlink.log | grep -c "OPEN")
 rf_ptt_bt=$(awk -v d1="$(date --date="-20 sec" "+%Y-%m-%d %H:%M:%S:")" \
 -v d2="$(date "+%Y-%m-%d %H:%M:%S:")" '$0 > d1 && $0 < d2 || $0 ~ d2' \
 /tmp/svxlink.log | grep -c "OPEN")
@@ -23,9 +25,7 @@ net_ptt=$(awk -v d1="$(date --date="-30 sec" "+%Y-%m-%d %H:%M:%S:")" \
 /tmp/svxlink.log | grep -c "Talker stop")
 
 # Progressive penalty timer
-if [ ! -f /tmp/rlpt ]; then
-    echo "1" > /tmp/rlpt
-fi
+if [ ! -f /tmp/rlpt ]; then echo "1" > /tmp/rlpt; fi
 bantime=$(($(cat /tmp/rlpt) * 60))
 
 # Abuse check / status
@@ -38,31 +38,30 @@ elif [ $rf_ptt_bc -gt 3 ] || [ $net_ptt -gt 9 ]; then
 fi
 
 # External triggers
+etmsg="External trigger,"
 if [ "$1" = "s" ]; then
-	logger -p User.alert "External trigger, service mode."
-	sudo poff -a; sleep 2 && sudo pon rlcfg
+	logger -p user.alert "$etmsg service mode."
+	poff -a; sleep 2 && pon rlcfg
 	exit 1
 elif [ "$1" = "9" ]; then
-	logger -p User.alert "External trigger, reboot."
-	sudo reboot -f
+	logger -p user.alert "$etmsg reboot."
+	reboot -f
 	exit 1
 elif [ "$1" = "3" ]; then
-	logger -p User.alert "External trigger, blocking traffic for $ext_trig_btm minutes."
-	touch /tmp/rolink.flg
-	sudo /sbin/iptables -I INPUT -s $reflector -j DROP
-	echo $ext_trig_btm > /tmp/rlpt
+	logger -p user.alert "$etmsg [TRAFFIC-BLOCK] for $ext_trig_btm minutes."
+	touch /tmp/rolink.flg; echo $ext_trig_btm > /tmp/rlpt
+	/sbin/iptables -I INPUT -s $reflector -j DROP
 	/opt/rolink/rolink-start.sh
 	exit 1
 elif [ "$1" = "2" ]; then
-	logger -p User.alert "External trigger, unblocking traffic."
-	echo "1" > /tmp/rlpt
-	rm -f /tmp/rolink.flg
-	sudo /sbin/iptables -D INPUT -s $reflector -j DROP
+	logger -p user.alert "$etmsg unblocking traffic."
+	rm -f /tmp/rolink.flg; rm -f /tmp/rlpt;
+	/sbin/iptables -D INPUT -s $reflector -j DROP
 	cat /dev/null > /tmp/svxlink.log
 	/opt/rolink/scripts/rolink-start.sh
 	exit 1
 elif [ "$1" = "1" ]; then
-	logger -p User.alert "External trigger, switching to <<TX Only>> mode for $ext_trig_btm minutes."
+	logger -p user.alert "$etmsg switching to [TX-ONLY] mode for $ext_trig_btm minutes."
 	echo $ext_trig_btm > /tmp/rlpt
 	[ "$(pidof svxlink)" != "" ] && killall -v svxlink && sleep 1
 	export LD_LIBRARY_PATH="/opt/rolink/lib"
@@ -71,18 +70,17 @@ elif [ "$1" = "1" ]; then
 	cat /dev/null > /tmp/svxlink.log && touch /tmp/rolink.flg
 	exit 1
 elif [ "$1" = "0" ]; then
-	logger -p User.alert "External trigger, switching to Normal Operation."
-	echo "1" > /tmp/rlpt
-	sudo /sbin/iptables -D INPUT -s $reflector -j DROP
-	rm -f /tmp/rolink.flg && cat /dev/null > /tmp/svxlink.log
+	logger -p user.alert "$etmsg switching to [NORMAL-OPERATION]."
+	/sbin/iptables -D INPUT -s $reflector -j DROP
+	rm -f /tmp/rolink.flg; rm -f /tmp/rlpt; cat /dev/null > /tmp/svxlink.log
 	/opt/rolink/scripts/rolink-start.sh
 	exit 1
 fi
 
 # Disable RX
 if [ $abuse ]; then
-	logger -p User.alert "Abuse from RF detected ($abuse PTTs within 20 seconds). <<RX disabled>> for $((($(cat /tmp/rlpt) * 60) / 60)) minutes."
-	[ "$(pidof svxlink)" != "" ] && killall -v svxlink && sleep 3
+	logger -p user.alert "Abuse from RF detected ($abuse PTTs within 20 seconds). [TX-ONLY] for $((($(cat /tmp/rlpt) * 60) / 60)) minutes."
+	[ "$(pidof svxlink)" != "" ] && killall -v svxlink && sleep 2
 	export LD_LIBRARY_PATH="/opt/rolink/lib"
 	/opt/rolink/bin/svxlink --daemon --config=/opt/rolink/conf/svxlinknorx.conf --logfile=/tmp/svxlink.log \
 	--runasuser=$run_as --pidfile=/var/run/svxlink.pid
@@ -92,31 +90,38 @@ fi
 
 # Disable traffic
 if [ ! -f /tmp/rolink.flg ] && [ $net_ptt -gt $max_net_ptt ]; then
-	touch /tmp/rolink.flg
-	sudo /sbin/iptables -I INPUT -s $reflector -j DROP
+	touch /tmp/rolink.flg; /sbin/iptables -I INPUT -s $reflector -j DROP
 	/opt/rolink/rolink-start.sh
-	logger -p User.alert "Abuse from network detected ($net_ptt), <<blocking traffic>> for $((($(cat /tmp/rlpt) * 60) / 60)) minutes."
+	logger -p user.alert "Abuse from network detected ($net_ptt PTTs within 30 seconds), [TRAFFIC-BLOCK] for $((($(cat /tmp/rlpt) * 60) / 60)) minutes."
 fi
 
 # Reset the timer / Increment the penalty by 5 minutes
 if [ -f /tmp/rolink.flg ] && [ "$(( $(date +"%s") - $(stat -c "%Y" /tmp/rolink.flg) ))" -gt $bantime ]; then
-	rm -f /tmp/rolink.flg
-	sudo /sbin/iptables -D INPUT -s $reflector -j DROP
-	cat /dev/null > /tmp/svxlink.log
+	rm -f /tmp/rolink.flg; cat /dev/null > /tmp/svxlink.log
+	/sbin/iptables -D INPUT -s $reflector -j DROP
 	/opt/rolink/scripts/rolink-start.sh
 	echo $(($(cat /tmp/rlpt) + 5 )) > /tmp/rlpt
 fi
 
 # Reset the penalty multiplication factor
-if [ -f /tmp/rlpt ] && [ "$(( $(date +"%s") - $(stat -c "%Y" /tmp/rlpt) ))" -gt 3600 ]; then
+if [ -f /tmp/rlpt ] && [ "$(( $(date +"%s") - $(stat -c "%Y" /tmp/rlpt) ))" -gt $pf_reset ]; then
 	echo "1" > /tmp/rlpt
 fi
 
+# Start debug if enabled
 if $debug; then
-	logger "D: Count: $rf_ptt_bc / Timed: $rf_ptt_bt / Net: $net_ptt, Ban time set to $((($(cat /tmp/rlpt) * 60) / 60)) minutes, Penalty factor is $(cat /tmp/rlpt)"
+	dmsg="D: (PTT) Count: $rf_ptt_bc / Timed: $rf_ptt_bt / Net: $net_ptt"
+	dmsg+=", Ban time: $((($(cat /tmp/rlpt) * 60) / 60)) min"
+	if [ $(cat /tmp/rlpt) -gt 1 ]; then
+		pft=$(( $(date +"%s") - $(stat -c "%Y" /tmp/rlpt) ))
+		dmsg+=", Penalty factor: $(cat /tmp/rlpt)"
+		dmsg+=" [$(( $pf_reset - $pft ))]"
+	fi	
 	if [ -f /tmp/rolink.flg ]; then
-		logger "D: Flag is $(( $(date +"%s") - $(stat -c "%Y" /tmp/rolink.flg) )) seconds old."
+		flt=$(( $(date +"%s") - $(stat -c "%Y" /tmp/rolink.flg) ))
+		dmsg+=", Protection ends in $(( $bantime - $flt )) sec"
 	fi
+	logger "$dmsg"
 fi
 
 # End loop
