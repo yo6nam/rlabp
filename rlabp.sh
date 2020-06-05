@@ -13,6 +13,7 @@ run_as=svxlink		# change to root where needed
 debug=false		# 'true' if you want cu check the timers
 
 # Starting the loop, nothing to edit below
+dt=10
 while true; do
 
 # Process the svxlink.log
@@ -108,7 +109,7 @@ if [ -f /tmp/rlpt ] && [ "$(( $(date +"%s") - $(stat -c "%Y" /tmp/rlpt) ))" -gt 
 fi
 
 # Start debug if enabled
-if $debug && [ -z $dt ] || [ $dt -eq 10 ]; then
+if $debug && [ $dt -eq 10 ]; then
 	dmsg="[RLABP Debug]: (PTT) Count: $rf_ptt_bc / Timed: $rf_ptt_bt / Net: $net_ptt"
 	if [ $(cat /tmp/rlpt) -gt 1 ]; then
 		pft=$(( $(date +"%s") - $(stat -c "%Y" /tmp/rlpt) ))
@@ -121,7 +122,7 @@ if $debug && [ -z $dt ] || [ $dt -eq 10 ]; then
 		dmsg+=", Protection ends in $(( $bantime - $flt )) sec"
 	fi
 	logger "$dmsg"
-	unset dt
+	dt=0
 fi
 
 if $debug; then ((dt++)); fi
