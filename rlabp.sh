@@ -7,7 +7,8 @@ max_rf_ptt=4		# RF side
 max_net_ptt=10		# Network side
 reflector=reflector.439100.ro,rolink.rolink-net.ro,svx.dstar-yo.ro
 ext_trig_btm=10		# Ban time value (minutes) for external triggered events
-pf_reset=3600		# Reset the penalty factor after how many seconds?
+pf=5				# Increase ban time after each recurring abuse with how many minutes?
+pf_reset=3600		# Reset the penalty factor to 1 after how many seconds?
 run_as=svxlink		# change to root where needed
 debug=false		# 'true' if you want cu check the timers
 
@@ -33,8 +34,8 @@ if [ $rf_ptt_bc -gt $max_rf_ptt ]; then
 	abuse=$(($rf_ptt_bc));
 elif [ $rf_ptt_bt -gt $max_rf_ptt ] && [ !$abuse ]; then
 	abuse=$(($rf_ptt_bt));
-elif [ $rf_ptt_bc -gt 3 ] || [ $net_ptt -gt 9 ]; then
-	logger "RLABP status Count: $rf_ptt_bc / Timed: $rf_ptt_bt / Net: $net_ptt"
+elif [ $rf_ptt_bc -gt 3 ] || [ $net_ptt -gt 9 ] && [ !$debug ]; then
+	logger "[RLABP PTT STATUS] - Count: $rf_ptt_bc / Timed: $rf_ptt_bt / Net: $net_ptt"
 fi
 
 # External triggers
@@ -92,15 +93,15 @@ fi
 if [ ! -f /tmp/rolink.flg ] && [ $net_ptt -gt $max_net_ptt ]; then
 	touch /tmp/rolink.flg; /sbin/iptables -I INPUT -s $reflector -j DROP
 	/opt/rolink/rolink-start.sh
-	logger -p user.alert "Abuse from network detected ($net_ptt PTTs within 30 seconds), [TRAFFIC-BLOCK] for $((($(cat /tmp/rlpt) * 60) / 60)) minutes."
+	logger -p user.alert "Abuse from NET detected ($net_ptt PTTs within 30 seconds), [TRAFFIC-BLOCK] for $((($(cat /tmp/rlpt) * 60) / 60)) minutes."
 fi
 
-# Reset the timer / Increment the penalty by 5 minutes
+# Reset the timer / increment the penalty by 5 minutes
 if [ -f /tmp/rolink.flg ] && [ "$(( $(date +"%s") - $(stat -c "%Y" /tmp/rolink.flg) ))" -gt $bantime ]; then
 	rm -f /tmp/rolink.flg; cat /dev/null > /tmp/svxlink.log
 	/sbin/iptables -D INPUT -s $reflector -j DROP
 	/opt/rolink/scripts/rolink-start.sh
-	echo $(($(cat /tmp/rlpt) + 5 )) > /tmp/rlpt
+	echo $(($(cat /tmp/rlpt) + $pf )) > /tmp/rlpt
 fi
 
 # Reset the penalty multiplication factor
@@ -109,14 +110,14 @@ if [ -f /tmp/rlpt ] && [ "$(( $(date +"%s") - $(stat -c "%Y" /tmp/rlpt) ))" -gt 
 fi
 
 # Start debug if enabled
-if $debug; then
+if $debug && [ $rf_ptt_bc -gt 0 ] && [ $net_ptt -gt 0 ]; then
 	dmsg="D: (PTT) Count: $rf_ptt_bc / Timed: $rf_ptt_bt / Net: $net_ptt"
 	dmsg+=", Ban time: $((($(cat /tmp/rlpt) * 60) / 60)) min"
 	if [ $(cat /tmp/rlpt) -gt 1 ]; then
 		pft=$(( $(date +"%s") - $(stat -c "%Y" /tmp/rlpt) ))
 		dmsg+=", Penalty factor: $(cat /tmp/rlpt)"
 		dmsg+=" [$(( $pf_reset - $pft ))]"
-	fi	
+	fi
 	if [ -f /tmp/rolink.flg ]; then
 		flt=$(( $(date +"%s") - $(stat -c "%Y" /tmp/rolink.flg) ))
 		dmsg+=", Protection ends in $(( $bantime - $flt )) sec"
