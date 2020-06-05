@@ -110,7 +110,7 @@ if [ -f /tmp/rlpt ] && [ "$(( $(date +"%s") - $(stat -c "%Y" /tmp/rlpt) ))" -gt 
 fi
 
 # Start debug if enabled
-if $debug && [ $rf_ptt_bc -gt 0 ] && [ $net_ptt -gt 0 ]; then
+if $debug; then
 	dmsg="D: (PTT) Count: $rf_ptt_bc / Timed: $rf_ptt_bt / Net: $net_ptt"
 	dmsg+=", Ban time: $((($(cat /tmp/rlpt) * 60) / 60)) min"
 	if [ $(cat /tmp/rlpt) -gt 1 ]; then
