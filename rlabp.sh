@@ -11,6 +11,7 @@ pf=5			# Increase ban time after each recurring abuse with how many minutes?
 pf_reset=3600		# Reset the penalty factor to 1 after how many seconds?
 run_as=svxlink		# change to root where needed
 debug=false		# 'true' if you want cu check the timers
+debug_frq=10	# how often to print debug lines (seconds)
 
 # Starting the loop, nothing to edit below
 while true; do
@@ -108,7 +109,7 @@ if [ -f /tmp/rlpt ] && [ "$(( $(date +"%s") - $(stat -c "%Y" /tmp/rlpt) ))" -gt 
 fi
 
 # Start debug if enabled
-if $debug && [[ -z $dt || $dt -eq 10 ]]; then
+if $debug && [[ -z $dt || $dt -eq $debug_frq ]]; then
 	dmsg="[RLABP Debug]: (PTT) Count: $rf_ptt_bc / Timed: $rf_ptt_bt / Net: $net_ptt"
 	if [ $(cat /tmp/rlpt) -gt 1 ]; then
 		pft=$(( $(date +"%s") - $(stat -c "%Y" /tmp/rlpt) ))
