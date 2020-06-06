@@ -2,7 +2,7 @@
 
 echo "[Unit]
 Description=RoLink Abuse Protection Service
-After=syslog.target network.target
+After=NetworkManager-wait-online.service
 
 [Service]
 User=root
