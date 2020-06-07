@@ -4,16 +4,23 @@
 
 # Set your options below
 max_rf_ptt=4		# RF side
-max_net_ptt=8		# Network side
+max_net_ptt=10		# Network side
 reflector=reflector.439100.ro,rolink.rolink-net.ro,svx.dstar-yo.ro
 ext_trig_btm=10		# Ban time value (minutes) for external triggered events
 pf=5			# Increase ban time after each recurring abuse with how many minutes?
 pf_reset=3600		# Reset the penalty factor to 1 after how many seconds?
 run_as=svxlink		# change to root where needed
 debug=false		# 'true' if you want cu check the timers
-debug_frq=10	# how often to print debug lines (seconds)
+debug_frq=10		# how often to print debug lines (seconds)
 
-# Starting the loop, nothing to edit below
+# Check for SvxLink logs
+if [ ! -f /tmp/svxlink.log ]; then
+	printf '' | tee /tmp/svxlink.log
+	logger -p user.warning "[RLABP]: Protection started, waiting for logs..."
+	sleep 15
+fi
+
+# Starting the loop
 while true; do
 
 # Process the svxlink.log
@@ -21,7 +28,7 @@ rf_ptt_bc=$(tail -22 /tmp/svxlink.log | grep -c "OPEN")
 rf_ptt_bt=$(awk -v d1="$(date --date="-20 sec" "+%Y-%m-%d %H:%M:%S:")" \
 -v d2="$(date "+%Y-%m-%d %H:%M:%S:")" '$0 > d1 && $0 < d2 || $0 ~ d2' \
 /tmp/svxlink.log | grep -c "OPEN")
-net_ptt=$(awk -v d1="$(date --date="-30 sec" "+%Y-%m-%d %H:%M:%S:")" \
+net_ptt=$(awk -v d1="$(date --date="-40 sec" "+%Y-%m-%d %H:%M:%S:")" \
 -v d2="$(date "+%Y-%m-%d %H:%M:%S:")" '$0 > d1 && $0 < d2 || $0 ~ d2' \
 /tmp/svxlink.log | grep -c "Talker stop")
 
