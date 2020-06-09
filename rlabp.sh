@@ -46,6 +46,14 @@ elif [ $rf_ptt_bc -gt 3 ] || [ $net_ptt -gt 9 ] && [ !$debug ]; then
 	logger "[RLABP PTT STATUS] - Count: $rf_ptt_bc / Timed: $rf_ptt_bt / Net: $net_ptt"
 fi
 
+# Delete blocking rules
+function del_fw_rules {
+	while (/sbin/iptables -C INPUT -s $reflector -j DROP; echo $? | grep -q "0"); do
+		((fr++))
+		/sbin/iptables -D INPUT -s $reflector -j DROP
+	done
+	if $debug && [ ! -z $fr ];then logger "[RLABP Debug]: $fr firewall rule(s) found and deleted."; fi
+}
 # External triggers
 etmsg="External trigger,"
 if [ "$1" = "s" ]; then
@@ -64,8 +72,7 @@ elif [ "$1" = "3" ]; then
 	exit 1
 elif [ "$1" = "2" ]; then
 	logger -p user.alert "$etmsg [TRAFFIC-UNBLOCK]."
-	rm -f /tmp/rolink.flg; rm -f /tmp/rlpt;
-	/sbin/iptables -D INPUT -s $reflector -j DROP
+	rm -f /tmp/rolink.flg; rm -f /tmp/rlpt; del_fw_rules
 	printf '' | tee /tmp/svxlink.log
 	/opt/rolink/scripts/rolink-start.sh
 	exit 1
@@ -79,7 +86,7 @@ elif [ "$1" = "1" ]; then
 	exit 1
 elif [ "$1" = "0" ]; then
 	logger -p user.alert "$etmsg switching to [NORMAL-OPERATION]."
-	/sbin/iptables -D INPUT -s $reflector -j DROP
+	del_fw_rules
 	rm -f /tmp/rolink.flg; rm -f /tmp/rlpt; printf '' | tee /tmp/svxlink.log
 	/opt/rolink/scripts/rolink-start.sh
 	exit 1
@@ -103,10 +110,10 @@ if [ ! -f /tmp/rolink.flg ] && [ $net_ptt -gt $max_net_ptt ]; then
 	logger -p user.alert "Abuse from NET detected ($net_ptt PTTs within 30 seconds), [TRAFFIC-BLOCK] for $((($(cat /tmp/rlpt) * 60) / 60)) minutes."
 fi
 
-# Reset the timer / increment the penalty by 5 minutes
+# Reset timers & increment the penalty by $pf value
 if [ -f /tmp/rolink.flg ] && [ "$(( $(date +"%s") - $(stat -c "%Y" /tmp/rolink.flg) ))" -gt $bantime ]; then
 	rm -f /tmp/rolink.flg; printf '' | tee /tmp/svxlink.log
-	/sbin/iptables -D INPUT -s $reflector -j DROP
+	del_fw_rules
 	/opt/rolink/scripts/rolink-start.sh
 	echo $(($(cat /tmp/rlpt) + $pf )) > /tmp/rlpt
 fi
