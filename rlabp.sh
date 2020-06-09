@@ -54,6 +54,7 @@ function del_fw_rules {
 	done
 	if $debug && [ ! -z $fr ];then logger "[RLABP Debug]: $fr firewall rule(s) found and deleted."; fi
 }
+
 # External triggers
 etmsg="External trigger,"
 if [ "$1" = "s" ]; then
@@ -115,7 +116,8 @@ if [ -f /tmp/rolink.flg ] && [ "$(( $(date +"%s") - $(stat -c "%Y" /tmp/rolink.f
 	rm -f /tmp/rolink.flg; printf '' | tee /tmp/svxlink.log
 	del_fw_rules
 	/opt/rolink/scripts/rolink-start.sh
-	echo $(($(cat /tmp/rlpt) + $pf )) > /tmp/rlpt
+	t=$(cat /tmp/rlpt)
+	echo $([ $t = $init_btm ] && echo $(($t - $init_btm + $pf)) || echo $(($t + $pf))) > /tmp/rlpt
 fi
 
 # Reset the penalty multiplication factor
