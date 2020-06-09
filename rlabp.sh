@@ -6,6 +6,7 @@
 max_rf_ptt=4		# RF side
 max_net_ptt=10		# Network side
 reflector=reflector.439100.ro,rolink.rolink-net.ro,svx.dstar-yo.ro
+init_btm=1		# Ban time value (minutes) for automatic triggered events
 ext_trig_btm=10		# Ban time value (minutes) for external triggered events
 pf=5			# Increase ban time after each recurring abuse with how many minutes?
 pf_reset=3600		# Reset the penalty factor to 1 after how many seconds?
@@ -33,7 +34,7 @@ net_ptt=$(awk -v d1="$(date --date="-40 sec" "+%Y-%m-%d %H:%M:%S:")" \
 /tmp/svxlink.log | grep -c "Talker stop")
 
 # Progressive penalty timer
-if [ ! -f /tmp/rlpt ]; then echo "1" > /tmp/rlpt; fi
+if [ ! -f /tmp/rlpt ]; then echo $init_btm > /tmp/rlpt; fi
 bantime=$(($(cat /tmp/rlpt) * 60))
 
 # Abuse check / status
@@ -112,13 +113,13 @@ fi
 
 # Reset the penalty multiplication factor
 if [ -f /tmp/rlpt ] && [ "$(( $(date +"%s") - $(stat -c "%Y" /tmp/rlpt) ))" -gt $pf_reset ]; then
-	echo "1" > /tmp/rlpt
+	echo $init_btm > /tmp/rlpt
 fi
 
 # Start debug if enabled
 if $debug && [[ -z $dt || $dt -eq $debug_frq ]]; then
 	dmsg="[RLABP Debug]: (PTT) Count: $rf_ptt_bc / Timed: $rf_ptt_bt / Net: $net_ptt"
-	if [ $(cat /tmp/rlpt) -gt 1 ]; then
+	if [ $(cat /tmp/rlpt) -gt $init_btm ]; then
 		pft=$(( $(date +"%s") - $(stat -c "%Y" /tmp/rlpt) ))
 		dmsg+=", Ban time: $((($(cat /tmp/rlpt) * 60) / 60)) min"
 		dmsg+=", Penalty factor: $(cat /tmp/rlpt)"
