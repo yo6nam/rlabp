@@ -2,12 +2,13 @@
 Protecţie automată a nodului/reţelei împotriva abuzurilor (sau a problemelor tehnice)
 
 ## Cum functioneaza?
-Logul generat de catre aplicatia SVXLink este citit de catre rlabp.sh si aplica urmatoarele :  
+Logul generat de catre aplicatia SVXLink este interpretat de catre scriptul rlabp.sh,\
+care ruleaza ca serviciu monitorizand urmatoarele :  
 - La mai mult de 4 ptt-uri primite din eter intr-un interval de 20 de secunde,  
-aplicatia se restarteaza in modul TX Only timp de 60 de secunde. Daca in interval de 60 de minute se repeta incidentul, timpul de penalizare creste cu cate 5 minute (1min -> 6min -> 11min etc)  
-- Daca dinspre retea se primesc mai mult de 10 ptt-uri in interval de 30 de secunde, aplicatia opreste traficul dinspre retea catre nod pentru acelasi interval de timp, mentionat mai sus.  
+aplicatia se restarteaza in modul TX Only timp de 1 minut. Daca in interval de 60 de minute se repeta incidentul, timpul de penalizare creste cu cate 5 minute (1min -> 6min -> 11min etc)  
+- Daca dinspre retea se primesc mai mult de 10 ptt-uri in interval de 40 de secunde, aplicatia opreste traficul dinspre retea catre nod pentru acelasi interval de timp, mentionat mai sus.
 
-Dupa expirarea timpului, se revine la modul RX/TX.  
+Dupa expirarea timpului, se revine la modul RX/TX.
   
 Instalarea se face simplu :
 ~~~ \
@@ -40,6 +41,14 @@ Dupa instalare nu este nevoie de alte interventii, scriptul fiind instalat ca se
 ~~~
 $systemctl status rlabp
 ~~~
+
+## Ce optiuni pot schimba?
+Majoritatea variabilelor sunt disponibile pentru modificare in primele linii ale scriptului.\
+Dupa ajustarea acestora, este nevoie de restartarea serviciului, folosind 
+~~~
+$systemctl restart rlabp
+~~~
+
 ## Trigger extern
 Logica de comutare in modul 'TX Only/Operare normala' poate fi comandata si din surse externe, consola, cron, etc.
 Argumentul poate fi 0 (Normal), 1 (TX Only), 2 (deblocare trafic nod<->reflector), 3 (blocare trafic nod<->reflector), 9 (reboot) si s (service mode / cerere conectare VPN catre server)
