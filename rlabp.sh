@@ -5,8 +5,9 @@
 # Set your options below
 max_rf_ptt=4		# RF side
 max_net_ptt=10		# Network side
+repeater=true		# Simplex should be false
 reflector=reflector.439100.ro,rolink.rolink-net.ro,svx.dstar-yo.ro
-rxd_vm=false		# RX Disable method (true=Voter, false=restart+PTY)
+rxd_vm=true		# RX Disable method (true=Voter, false=PTY+restart)
 init_btm=1		# Ban time value (minutes) for automatic triggered events
 ext_trig_btm=10		# Ban time value (minutes) for external triggered events
 pf=5			# Increase ban time after each recurring abuse with how many minutes?
@@ -26,7 +27,11 @@ fi
 while true; do
 
 # Process the svxlink.log
-rf_ptt_bc=$(tail -22 /tmp/svxlink.log | grep -c "OPEN")
+if $repeater; then
+	rf_ptt_bc=0
+else
+	rf_ptt_bc=$(tail -22 /tmp/svxlink.log | grep -c "OPEN")
+fi
 rf_ptt_bt=$(awk -v d1="$(date --date="-20 sec" "+%Y-%m-%d %H:%M:%S:")" \
 -v d2="$(date "+%Y-%m-%d %H:%M:%S:")" '$0 > d1 && $0 < d2 || $0 ~ d2' \
 /tmp/svxlink.log | grep -c "OPEN")
@@ -43,8 +48,6 @@ if [ $rf_ptt_bc -gt $max_rf_ptt ]; then
 	abuse=$(($rf_ptt_bc));
 elif [ $rf_ptt_bt -gt $max_rf_ptt ] && [ !$abuse ]; then
 	abuse=$(($rf_ptt_bt));
-elif [ $rf_ptt_bc -gt 3 ] || [ $net_ptt -gt 9 ] && [ !$debug ]; then
-	logger "[RLABP PTT STATUS] - Count: $rf_ptt_bc / Timed: $rf_ptt_bt / Net: $net_ptt"
 fi
 
 # Delete blocking rules
@@ -144,15 +147,15 @@ fi
 
 # Start debug if enabled
 if $debug && [[ -z $dt || $dt -eq $debug_frq ]]; then
-	dmsg="[RLABP Debug]: (PTT) Count: $rf_ptt_bc / Timed: $rf_ptt_bt / Net: $net_ptt"
+	dmsg="[RLABP Debug]: Count: $rf_ptt_bc / Timed: $rf_ptt_bt / Net: $net_ptt"
+	if $rxd_vm; then
+		dmsg+=", [voter]"
+	fi
 	if [ $(cat /tmp/rlpt) -gt $init_btm ]; then
 		pft=$(( $(date +"%s") - $(stat -c "%Y" /tmp/rlpt) ))
 		dmsg+=", Ban time: $((($(cat /tmp/rlpt) * 60) / 60)) min"
 		dmsg+=", Penalty factor: $(cat /tmp/rlpt)"
 		dmsg+=" [$(( $pf_reset - $pft ))]"
-	fi
-	if $rxd_vm; then
-		dmsg+=", Voter: ON"
 	fi
 	if [ -f /tmp/rolink.flg ]; then
 		flt=$(( $(date +"%s") - $(stat -c "%Y" /tmp/rolink.flg) ))
