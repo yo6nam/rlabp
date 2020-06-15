@@ -6,6 +6,7 @@
 max_rf_ptt=4		# RF side
 max_net_ptt=10		# Network side
 reflector=reflector.439100.ro,rolink.rolink-net.ro,svx.dstar-yo.ro
+rxd_vm=false		# RX Disable method (true=Voter, false=restart+PTY)
 init_btm=1		# Ban time value (minutes) for automatic triggered events
 ext_trig_btm=10		# Ban time value (minutes) for external triggered events
 pf=5			# Increase ban time after each recurring abuse with how many minutes?
@@ -80,16 +81,24 @@ elif [ "$1" = "2" ]; then
 elif [ "$1" = "1" ]; then
 	logger -p user.alert "$etmsg switching to [TX-ONLY] mode for $ext_trig_btm minutes."
 	touch /tmp/rolink.flg; echo $ext_trig_btm > /tmp/rlpt; printf '' | tee /tmp/svxlink.log
-	[ "$(pidof svxlink)" != "" ] && killall -v svxlink && sleep 1
-	export LD_LIBRARY_PATH="/opt/rolink/lib"
-	/opt/rolink/bin/svxlink --daemon --config=/opt/rolink/conf/svxlinknorx.conf --logfile=/tmp/svxlink.log \
-	--runasuser=$run_as --pidfile=/var/run/svxlink.pid
+	if $rxd_vm; then
+		echo "DISABLE RxLocal" > /tmp/voter
+	else
+		[ "$(pidof svxlink)" != "" ] && killall -v svxlink && sleep 1
+		export LD_LIBRARY_PATH="/opt/rolink/lib"
+		/opt/rolink/bin/svxlink --daemon --config=/opt/rolink/conf/svxlinknorx.conf --logfile=/tmp/svxlink.log \
+		--runasuser=$run_as --pidfile=/var/run/svxlink.pid
+	fi
 	exit 1
 elif [ "$1" = "0" ]; then
 	logger -p user.alert "$etmsg switching to [NORMAL-OPERATION]."
 	del_fw_rules
 	rm -f /tmp/rolink.flg; rm -f /tmp/rlpt; printf '' | tee /tmp/svxlink.log
-	/opt/rolink/scripts/rolink-start.sh
+	if $rxd_vm; then
+		echo "ENABLE RxLocal" > /tmp/voter
+	else
+		/opt/rolink/scripts/rolink-start.sh
+	fi
 	exit 1
 fi
 
@@ -97,10 +106,14 @@ fi
 if [ $abuse ]; then
 	logger -p user.alert "Abuse from RF detected ($abuse PTTs within 20 seconds). [TX-ONLY] for $((($(cat /tmp/rlpt) * 60) / 60)) minutes."
 	touch /tmp/rolink.flg; printf '' | tee /tmp/svxlink.log
-	[ "$(pidof svxlink)" != "" ] && killall -v svxlink && sleep 2
-	export LD_LIBRARY_PATH="/opt/rolink/lib"
-	/opt/rolink/bin/svxlink --daemon --config=/opt/rolink/conf/svxlinknorx.conf --logfile=/tmp/svxlink.log \
-	--runasuser=$run_as --pidfile=/var/run/svxlink.pid
+	if $rxd_vm; then
+		echo "DISABLE RxLocal" > /tmp/voter
+	else
+		[ "$(pidof svxlink)" != "" ] && killall -v svxlink && sleep 2
+		export LD_LIBRARY_PATH="/opt/rolink/lib"
+		/opt/rolink/bin/svxlink --daemon --config=/opt/rolink/conf/svxlinknorx.conf --logfile=/tmp/svxlink.log \
+		--runasuser=$run_as --pidfile=/var/run/svxlink.pid
+	fi
 	unset abuse
 fi
 
@@ -115,7 +128,11 @@ fi
 if [ -f /tmp/rolink.flg ] && [ "$(( $(date +"%s") - $(stat -c "%Y" /tmp/rolink.flg) ))" -gt $bantime ]; then
 	rm -f /tmp/rolink.flg; printf '' | tee /tmp/svxlink.log
 	del_fw_rules
-	/opt/rolink/scripts/rolink-start.sh
+	if $rxd_vm; then
+		echo "ENABLE RxLocal" > /tmp/voter
+	else
+		/opt/rolink/scripts/rolink-start.sh
+	fi
 	t=$(cat /tmp/rlpt)
 	echo $([ $t = $init_btm ] && echo $(($t - $init_btm + $pf)) || echo $(($t + $pf))) > /tmp/rlpt
 fi
@@ -133,6 +150,9 @@ if $debug && [[ -z $dt || $dt -eq $debug_frq ]]; then
 		dmsg+=", Ban time: $((($(cat /tmp/rlpt) * 60) / 60)) min"
 		dmsg+=", Penalty factor: $(cat /tmp/rlpt)"
 		dmsg+=" [$(( $pf_reset - $pft ))]"
+	fi
+	if $rxd_vm; then
+		dmsg+=", Voter: ON"
 	fi
 	if [ -f /tmp/rolink.flg ]; then
 		flt=$(( $(date +"%s") - $(stat -c "%Y" /tmp/rolink.flg) ))
