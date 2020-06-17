@@ -5,7 +5,7 @@ Protecţie automată a nodului/reţelei împotriva abuzurilor (sau a problemelor
 Logul generat de catre aplicatia SVXLink este interpretat de catre scriptul rlabp.sh,\
 care ruleaza ca serviciu monitorizand urmatoarele :  
 - La mai mult de 4 ptt-uri primite din eter intr-un interval de 20 de secunde,  
-aplicatia restarteaza procesul SVXLink in modul TX Only timp de 1 minut. Daca in interval de 60 de minute se repeta incidentul, timpul de penalizare creste cu cate 5 minute (1min -> 5min -> 10min etc)  
+aplicatia comuta SVXLink in modul TX Only timp de 1 minut. Daca in interval de 60 de minute se repeta incidentul, timpul de penalizare creste cu cate 5 minute (1min -> 5min -> 10min etc)  
 - Daca dinspre retea se primesc mai mult de 10 ptt-uri in interval de 40 de secunde, aplicatia opreste traficul dinspre retea catre nod pentru acelasi interval de timp, mentionat mai sus.
 
 Dupa expirarea timpului, se revine la modul RX/TX.
@@ -42,26 +42,6 @@ VOTING_DELAY=100
 BUFFER_LENGTH=100
 COMMAND_PTY=/tmp/voter
 ~~~ 
-
-Modificare fisierului clona de configurare (svxlinknorx.conf) presupune modificarea liniilor din : 
-~~~ \
-[RxLocal]
-...  
-SQL_DET=GPIO  
-GPIO_SQL_PIN=!gpio20  
-...  
-~~~
-  
-in :
-~~~ \
-[RxLocal]
-...  
-#SQL_DET=GPIO  
-#GPIO_SQL_PIN=!gpio20  
-SQL_DET=PTY  
-PTY_PATH=/tmp/sql  
-...  
-~~~
   
 Dupa instalare nu este nevoie de alte interventii, scriptul fiind instalat ca serviciu. Statusul lui poate fi verificat prin comanda
 ~~~
