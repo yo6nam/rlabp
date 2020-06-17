@@ -4,10 +4,8 @@
 
 # Set your options below
 max_rf_ptt=4		# RF side
-max_net_ptt=10		# Network side
-repeater=true		# Simplex should be false
+max_net_ptt=8		# Network side
 reflector=reflector.439100.ro,rolink.rolink-net.ro,svx.dstar-yo.ro
-rxd_vm=true		# RX Disable method (true=Voter, false=PTY+restart)
 init_btm=1		# Ban time value (minutes) for automatic triggered events
 ext_trig_btm=10		# Ban time value (minutes) for external triggered events
 pf=5			# Increase ban time after each recurring abuse with how many minutes?
@@ -27,15 +25,11 @@ fi
 while true; do
 
 # Process the svxlink.log
-if $repeater; then
-	rf_ptt_bc=0
-else
-	rf_ptt_bc=$(tail -22 /tmp/svxlink.log | grep -c "OPEN")
-fi
-rf_ptt_bt=$(awk -v d1="$(date --date="-20 sec" "+%Y-%m-%d %H:%M:%S:")" \
+
+rf_ptt=$(awk -v d1="$(date --date="-20 sec" "+%Y-%m-%d %H:%M:%S:")" \
 -v d2="$(date "+%Y-%m-%d %H:%M:%S:")" '$0 > d1 && $0 < d2 || $0 ~ d2' \
 /tmp/svxlink.log | grep -c "OPEN")
-net_ptt=$(awk -v d1="$(date --date="-40 sec" "+%Y-%m-%d %H:%M:%S:")" \
+net_ptt=$(awk -v d1="$(date --date="-30 sec" "+%Y-%m-%d %H:%M:%S:")" \
 -v d2="$(date "+%Y-%m-%d %H:%M:%S:")" '$0 > d1 && $0 < d2 || $0 ~ d2' \
 /tmp/svxlink.log | grep -c "Talker stop")
 
@@ -44,11 +38,7 @@ if [ ! -f /tmp/rlpt ]; then echo $init_btm > /tmp/rlpt; fi
 bantime=$(($(cat /tmp/rlpt) * 60))
 
 # Abuse check / status
-if [ $rf_ptt_bc -gt $max_rf_ptt ]; then
-	abuse=$(($rf_ptt_bc));
-elif [ $rf_ptt_bt -gt $max_rf_ptt ] && [ !$abuse ]; then
-	abuse=$(($rf_ptt_bt));
-fi
+if [ $rf_ptt -gt $max_rf_ptt ]; then abuse=$(($rf_ptt)); fi
 
 # Delete blocking rules
 function del_fw_rules {
@@ -84,24 +74,13 @@ elif [ "$1" = "2" ]; then
 elif [ "$1" = "1" ]; then
 	logger -p user.alert "$etmsg switching to [TX-ONLY] mode for $ext_trig_btm minutes."
 	touch /tmp/rolink.flg; echo $ext_trig_btm > /tmp/rlpt; printf '' | tee /tmp/svxlink.log
-	if $rxd_vm; then
-		echo "DISABLE RxLocal" > /tmp/voter
-	else
-		[ "$(pidof svxlink)" != "" ] && killall -v svxlink && sleep 1
-		export LD_LIBRARY_PATH="/opt/rolink/lib"
-		/opt/rolink/bin/svxlink --daemon --config=/opt/rolink/conf/svxlinknorx.conf --logfile=/tmp/svxlink.log \
-		--runasuser=$run_as --pidfile=/var/run/svxlink.pid
-	fi
+	echo "DISABLE RxLocal" > /tmp/voter
 	exit 1
 elif [ "$1" = "0" ]; then
 	logger -p user.alert "$etmsg switching to [NORMAL-OPERATION]."
 	del_fw_rules
 	rm -f /tmp/rolink.flg; rm -f /tmp/rlpt; printf '' | tee /tmp/svxlink.log
-	if $rxd_vm; then
-		echo "ENABLE RxLocal" > /tmp/voter
-	else
-		/opt/rolink/scripts/rolink-start.sh
-	fi
+	echo "ENABLE RxLocal" > /tmp/voter
 	exit 1
 fi
 
@@ -109,14 +88,7 @@ fi
 if [ $abuse ]; then
 	logger -p user.alert "Abuse from RF detected ($abuse PTTs within 20 seconds). [TX-ONLY] for $((($(cat /tmp/rlpt) * 60) / 60)) minutes."
 	touch /tmp/rolink.flg; printf '' | tee /tmp/svxlink.log
-	if $rxd_vm; then
-		echo "DISABLE RxLocal" > /tmp/voter
-	else
-		[ "$(pidof svxlink)" != "" ] && killall -v svxlink && sleep 2
-		export LD_LIBRARY_PATH="/opt/rolink/lib"
-		/opt/rolink/bin/svxlink --daemon --config=/opt/rolink/conf/svxlinknorx.conf --logfile=/tmp/svxlink.log \
-		--runasuser=$run_as --pidfile=/var/run/svxlink.pid
-	fi
+	echo "DISABLE RxLocal" > /tmp/voter
 	unset abuse
 fi
 
@@ -124,18 +96,14 @@ fi
 if [ ! -f /tmp/rolink.flg ] && [ $net_ptt -gt $max_net_ptt ]; then
 	touch /tmp/rolink.flg; /sbin/iptables -I INPUT -s $reflector -j DROP
 	/opt/rolink/rolink-start.sh
-	logger -p user.alert "Abuse from NET detected ($net_ptt PTTs within 30 seconds), [TRAFFIC-BLOCK] for $((($(cat /tmp/rlpt) * 60) / 60)) minutes."
+	logger -p user.alert "Abuse from NET detected ($net_ptt PTTs within 40 seconds), [TRAFFIC-BLOCK] for $((($(cat /tmp/rlpt) * 60) / 60)) minutes."
 fi
 
 # Reset timers & increment the penalty by $pf value
 if [ -f /tmp/rolink.flg ] && [ "$(( $(date +"%s") - $(stat -c "%Y" /tmp/rolink.flg) ))" -gt $bantime ]; then
 	rm -f /tmp/rolink.flg; printf '' | tee /tmp/svxlink.log
 	del_fw_rules
-	if $rxd_vm; then
-		echo "ENABLE RxLocal" > /tmp/voter
-	else
-		/opt/rolink/scripts/rolink-start.sh
-	fi
+	echo "ENABLE RxLocal" > /tmp/voter
 	t=$(cat /tmp/rlpt)
 	echo $([ $t = $init_btm ] && echo $(($t - $init_btm + $pf)) || echo $(($t + $pf))) > /tmp/rlpt
 fi
@@ -147,15 +115,11 @@ fi
 
 # Start debug if enabled
 if $debug && [[ -z $dt || $dt -eq $debug_frq ]]; then
-	dmsg="[RLABP Debug]: Count: $rf_ptt_bc / Timed: $rf_ptt_bt / Net: $net_ptt"
-	if $rxd_vm; then
-		dmsg+=", [voter]"
-	fi
+	dmsg="[RLABP Debug]: RF: $rf_ptt / Net: $net_ptt"
 	if [ $(cat /tmp/rlpt) -gt $init_btm ]; then
 		pft=$(( $(date +"%s") - $(stat -c "%Y" /tmp/rlpt) ))
 		dmsg+=", Ban time: $((($(cat /tmp/rlpt) * 60) / 60)) min"
-		dmsg+=", Penalty factor: $(cat /tmp/rlpt)"
-		dmsg+=" [$(( $pf_reset - $pft ))]"
+		dmsg+=", Penalty factor reset: [$(( $pf_reset - $pft ))]"
 	fi
 	if [ -f /tmp/rolink.flg ]; then
 		flt=$(( $(date +"%s") - $(stat -c "%Y" /tmp/rolink.flg) ))
