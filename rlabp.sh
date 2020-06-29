@@ -25,7 +25,6 @@ fi
 while true; do
 
 # Process the svxlink.log
-
 rf_ptt=$(awk -v d1="$(date --date="-20 sec" "+%Y-%m-%d %H:%M:%S:")" \
 -v d2="$(date "+%Y-%m-%d %H:%M:%S:")" '$0 > d1 && $0 < d2 || $0 ~ d2' \
 /tmp/svxlink.log | grep -c "OPEN")
@@ -96,7 +95,7 @@ fi
 if [ ! -f /tmp/rolink.flg ] && [ $net_ptt -gt $max_net_ptt ]; then
 	touch /tmp/rolink.flg; /sbin/iptables -I INPUT -s $reflector -j DROP
 	/opt/rolink/rolink-start.sh
-	logger -p user.alert "Abuse from NET detected ($net_ptt PTTs within 40 seconds), [TRAFFIC-BLOCK] for $((($(cat /tmp/rlpt) * 60) / 60)) minutes."
+	logger -p user.alert "Abuse from NET detected ($net_ptt PTTs within 30 seconds), [TRAFFIC-BLOCK] for $((($(cat /tmp/rlpt) * 60) / 60)) minutes."
 fi
 
 # Reset timers & increment the penalty by $pf value
