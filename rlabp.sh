@@ -6,6 +6,8 @@
 max_rf_ptt=4		# RF side
 max_net_ptt=8		# Network side
 reflector=reflector.439100.ro,rolink.rolink-net.ro,svx.dstar-yo.ro
+static=true		# false for dynamic connection to reflector (activates on PTT)
+stime=30		# How many minutes to remain connected to the reflector?
 init_btm=1		# Ban time value (minutes) for automatic triggered events
 ext_trig_btm=10		# Ban time value (minutes) for external triggered events
 pf=5			# Increase ban time after each recurring abuse with how many minutes?
@@ -23,6 +25,12 @@ fi
 
 # Starting the loop
 while true; do
+
+# Check the voter file
+if [ ! -L /tmp/voter ]; then
+        rm -f /tmp/voter
+        /opt/rolink/scripts/rolink-start.sh
+fi
 
 # Process the svxlink.log
 rf_ptt=$(awk -v d1="$(date --date="-20 sec" "+%Y-%m-%d %H:%M:%S:")" \
@@ -67,7 +75,7 @@ elif [ "$1" = "3" ]; then
 elif [ "$1" = "2" ]; then
 	logger -p user.alert "$etmsg [TRAFFIC-UNBLOCK]."
 	rm -f /tmp/rolink.flg; rm -f /tmp/rlpt; del_fw_rules
-	printf '' | tee /tmp/svxlink.log
+	printf '' | tee /tmp/svxlink.log; printf '1' | tee /tmp/rldc;
 	/opt/rolink/scripts/rolink-start.sh
 	exit 1
 elif [ "$1" = "1" ]; then
@@ -77,7 +85,7 @@ elif [ "$1" = "1" ]; then
 	exit 1
 elif [ "$1" = "0" ]; then
 	logger -p user.alert "$etmsg switching to [NORMAL-OPERATION]."
-	del_fw_rules
+	del_fw_rules; printf '1' | tee /tmp/rldc;
 	rm -f /tmp/rolink.flg; rm -f /tmp/rlpt; printf '' | tee /tmp/svxlink.log
 	echo "ENABLE RxLocal" > /tmp/voter
 	exit 1
@@ -110,6 +118,20 @@ fi
 # Reset the penalty multiplication factor
 if [ -f /tmp/rlpt ] && [ "$(( $(date +"%s") - $(stat -c "%Y" /tmp/rlpt) ))" -gt $pf_reset ]; then
 	echo $init_btm > /tmp/rlpt
+fi
+
+# Dynamic connection to reflector
+if [ "$static" = false ] ; then
+	if [ ! -f /tmp/rldc ]; then
+		printf '0' | tee /tmp/rldc;	/sbin/iptables -I INPUT -s $reflector -j DROP
+	fi
+	if [ $rf_ptt -gt 0 ] && [ $(cat /tmp/rldc) -eq 0 ] && [ ! -f /tmp/rolink.flg ]; then
+		printf '1' | tee /tmp/rldc
+		del_fw_rules; /opt/rolink/scripts/rolink-start.sh
+	fi
+	if [ $(cat /tmp/rldc) -gt 0 ] && [ "$(( $(date +"%s") - $(stat -c "%Y" /tmp/rldc) ))" -gt $(($stime * 60)) ]; then
+		printf '0' | tee /tmp/rldc; /sbin/iptables -I INPUT -s $reflector -j DROP
+	fi
 fi
 
 # Start debug if enabled
