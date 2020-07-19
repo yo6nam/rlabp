@@ -1,5 +1,5 @@
 #!/bin/bash
-# Serviciu anti-abuz dinspre RF/retea & activare externa & penalizare progresiva
+# Serviciu anti-abuz dinspre RF/retea, activare externa, penalizare progresiva, conectare dinamica
 # https://github.com/yo6nam/rlabp
 
 # Set your options below
@@ -13,7 +13,7 @@ ext_trig_btm=10		# Ban time value (minutes) for external triggered events
 pf=5			# Increase ban time after each recurring abuse with how many minutes?
 pf_reset=3600		# Reset the penalty factor to 1 after how many seconds?
 run_as=svxlink		# change to root where needed
-debug=false		# 'true' if you want cu check the timers
+debug=false		# Print debug information
 debug_frq=10		# how often to print debug lines (seconds)
 
 # Check for SvxLink logs
@@ -41,7 +41,7 @@ net_ptt=$(awk -v d1="$(date --date="-30 sec" "+%Y-%m-%d %H:%M:%S:")" \
 /tmp/svxlink.log | grep -c "Talker stop")
 
 # Progressive penalty timer
-if [ ! -f /tmp/rlpt ]; then echo $init_btm > /tmp/rlpt; fi
+if [ ! -f /tmp/rlpt ]; then printf $init_btm | tee /tmp/rlpt; fi
 bantime=$(($(cat /tmp/rlpt) * 60))
 
 # Abuse check / status
@@ -137,6 +137,10 @@ fi
 # Start debug if enabled
 if $debug && [[ -z $dt || $dt -eq $debug_frq ]]; then
 	dmsg="[RLABP Debug]: RF: $rf_ptt / Net: $net_ptt"
+	if [ $(cat /tmp/rldc) -gt 0 ] ; then
+		dtr=$(( $(date +"%s") - $(stat -c "%Y" /tmp/rldc) ))
+		dmsg+=", Dynamic: $((($stime * 60) - $dtr)) sec"
+	fi
 	if [ $(cat /tmp/rlpt) -gt $init_btm ]; then
 		pft=$(( $(date +"%s") - $(stat -c "%Y" /tmp/rlpt) ))
 		dmsg+=", Ban time: $((($(cat /tmp/rlpt) * 60) / 60)) min"
