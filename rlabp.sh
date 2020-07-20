@@ -109,7 +109,7 @@ fi
 # Reset timers & increment the penalty by $pf value
 if [ -f /tmp/rolink.flg ] && [ "$(( $(date +"%s") - $(stat -c "%Y" /tmp/rolink.flg) ))" -gt $bantime ]; then
 	rm -f /tmp/rolink.flg; printf '' | tee /tmp/svxlink.log
-	del_fw_rules; printf "ENABLE RxLocal" | /tmp/voter
+	del_fw_rules; printf "ENABLE RxLocal" | tee /tmp/voter
 	t=$(cat /tmp/rlpt)
 	echo $([ $t = $init_btm ] && echo $(($t - $init_btm + $pf)) || echo $(($t + $pf))) > /tmp/rlpt
 fi
