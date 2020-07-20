@@ -41,6 +41,21 @@ bantime=$(($(cat /tmp/rlpt) * 60))
 # Abuse check / status
 if [ $rf_ptt -gt $max_rf_ptt ]; then abuse=$(($rf_ptt)); fi
 
+# Check for voter file corruption
+function voter_en {
+	if pgrep -x "svxlink" >/dev/null; then
+		if [ -e /tmp/voter ] && [ ! -L /tmp/voter ]; then
+			rm -f /tmp/voter
+			/opt/rolink/scripts/rolink-start.sh
+			sleep 1
+		fi
+		echo "ENABLE RxLocal" > /tmp/voter
+	else
+		if [ -e /tmp/voter ] && [ ! -L /tmp/voter ]; then
+			rm -f /tmp/voter
+		fi
+}
+
 # Delete blocking rules
 function del_fw_rules {
 	while (/sbin/iptables -C INPUT -s $reflector -j DROP; echo $? | grep -q "0"); do
@@ -81,12 +96,7 @@ elif [ "$1" = "0" ]; then
 	logger -p user.alert "$etmsg switching to [NORMAL-OPERATION]."
 	del_fw_rules; printf '1' | tee /tmp/rldc;
 	rm -f /tmp/rolink.flg; printf $init_btm | tee /tmp/rlpt; printf '' | tee /tmp/svxlink.log
-	# Check the voter file
-	if [ ! -L /tmp/voter ]; then
-		rm -f /tmp/voter
-		/opt/rolink/scripts/rolink-start.sh
-	fi
-	echo "ENABLE RxLocal" > /tmp/voter
+	voter_en
 	exit 1
 fi
 
@@ -108,12 +118,7 @@ fi
 # Reset timers & increment the penalty by $pf value
 if [ -f /tmp/rolink.flg ] && [ "$(( $(date +"%s") - $(stat -c "%Y" /tmp/rolink.flg) ))" -gt $bantime ]; then
 	rm -f /tmp/rolink.flg; printf '' | tee /tmp/svxlink.log
-# Check the voter file
-	if [ ! -L /tmp/voter ]; then
-	        rm -f /tmp/voter
-	        /opt/rolink/scripts/rolink-start.sh
-	fi
-	del_fw_rules; echo "ENABLE RxLocal" > /tmp/voter
+	del_fw_rules; voter_en
 	t=$(cat /tmp/rlpt)
 	echo $([ $t = $init_btm ] && echo $(($t - $init_btm + $pf)) || echo $(($t + $pf))) > /tmp/rlpt
 fi
