@@ -50,10 +50,9 @@ function voter_en {
 			sleep 1
 		fi
 		echo "ENABLE RxLocal" > /tmp/voter
-	else
-		if [ -e /tmp/voter ] && [ ! -L /tmp/voter ]; then
-			rm -f /tmp/voter
-		fi
+	elif [ -e /tmp/voter ] && [ ! -L /tmp/voter ]; then
+		rm -f /tmp/voter
+	fi
 }
 
 # Delete blocking rules
