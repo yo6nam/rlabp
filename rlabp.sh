@@ -26,12 +26,6 @@ fi
 # Starting the loop
 while true; do
 
-# Check the voter file
-if [ ! -L /tmp/voter ]; then
-        rm -f /tmp/voter
-        /opt/rolink/scripts/rolink-start.sh
-fi
-
 # Process the svxlink.log
 rf_ptt=$(awk -v d1="$(date --date="-20 sec" "+%Y-%m-%d %H:%M:%S:")" \
 -v d2="$(date "+%Y-%m-%d %H:%M:%S:")" '$0 > d1 && $0 < d2 || $0 ~ d2' \
@@ -87,6 +81,11 @@ elif [ "$1" = "0" ]; then
 	logger -p user.alert "$etmsg switching to [NORMAL-OPERATION]."
 	del_fw_rules; printf '1' | tee /tmp/rldc;
 	rm -f /tmp/rolink.flg; printf $init_btm | tee /tmp/rlpt; printf '' | tee /tmp/svxlink.log
+	# Check the voter file
+	if [ ! -L /tmp/voter ]; then
+		rm -f /tmp/voter
+		/opt/rolink/scripts/rolink-start.sh
+	fi
 	echo "ENABLE RxLocal" > /tmp/voter
 	exit 1
 fi
@@ -109,7 +108,12 @@ fi
 # Reset timers & increment the penalty by $pf value
 if [ -f /tmp/rolink.flg ] && [ "$(( $(date +"%s") - $(stat -c "%Y" /tmp/rolink.flg) ))" -gt $bantime ]; then
 	rm -f /tmp/rolink.flg; printf '' | tee /tmp/svxlink.log
-	del_fw_rules; printf "ENABLE RxLocal" | tee /tmp/voter
+# Check the voter file
+	if [ ! -L /tmp/voter ]; then
+	        rm -f /tmp/voter
+	        /opt/rolink/scripts/rolink-start.sh
+	fi
+	del_fw_rules; echo "ENABLE RxLocal" > /tmp/voter
 	t=$(cat /tmp/rlpt)
 	echo $([ $t = $init_btm ] && echo $(($t - $init_btm + $pf)) || echo $(($t + $pf))) > /tmp/rlpt
 fi
