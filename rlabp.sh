@@ -74,19 +74,19 @@ elif [ "$1" = "3" ]; then
 	exit 1
 elif [ "$1" = "2" ]; then
 	logger -p user.alert "$etmsg [TRAFFIC-UNBLOCK]."
-	rm -f /tmp/rolink.flg; rm -f /tmp/rlpt; del_fw_rules
+	rm -f /tmp/rolink.flg; printf $init_btm | tee /tmp/rlpt; del_fw_rules
 	printf '' | tee /tmp/svxlink.log; printf '1' | tee /tmp/rldc;
 	/opt/rolink/scripts/rolink-start.sh
 	exit 1
 elif [ "$1" = "1" ]; then
 	logger -p user.alert "$etmsg switching to [TX-ONLY] mode for $ext_trig_btm minutes."
-	touch /tmp/rolink.flg; echo $ext_trig_btm > /tmp/rlpt; printf '' | tee /tmp/svxlink.log
+	touch /tmp/rolink.flg; printf $ext_trig_btm | tee /tmp/rlpt; printf '' | tee /tmp/svxlink.log
 	echo "DISABLE RxLocal" > /tmp/voter
 	exit 1
 elif [ "$1" = "0" ]; then
 	logger -p user.alert "$etmsg switching to [NORMAL-OPERATION]."
 	del_fw_rules; printf '1' | tee /tmp/rldc;
-	rm -f /tmp/rolink.flg; rm -f /tmp/rlpt; printf '' | tee /tmp/svxlink.log
+	rm -f /tmp/rolink.flg; printf $init_btm | tee /tmp/rlpt; printf '' | tee /tmp/svxlink.log
 	echo "ENABLE RxLocal" > /tmp/voter
 	exit 1
 fi
@@ -109,15 +109,14 @@ fi
 # Reset timers & increment the penalty by $pf value
 if [ -f /tmp/rolink.flg ] && [ "$(( $(date +"%s") - $(stat -c "%Y" /tmp/rolink.flg) ))" -gt $bantime ]; then
 	rm -f /tmp/rolink.flg; printf '' | tee /tmp/svxlink.log
-	del_fw_rules
-	echo "ENABLE RxLocal" > /tmp/voter
+	del_fw_rules; printf "ENABLE RxLocal" | /tmp/voter
 	t=$(cat /tmp/rlpt)
 	echo $([ $t = $init_btm ] && echo $(($t - $init_btm + $pf)) || echo $(($t + $pf))) > /tmp/rlpt
 fi
 
 # Reset the penalty multiplication factor
 if [ -f /tmp/rlpt ] && [ "$(( $(date +"%s") - $(stat -c "%Y" /tmp/rlpt) ))" -gt $pf_reset ]; then
-	echo $init_btm > /tmp/rlpt
+	printf $init_btm | tee /tmp/rlpt
 fi
 
 # Dynamic connection to reflector
@@ -139,7 +138,7 @@ if $debug && [[ -z $dt || $dt -eq $debug_frq ]]; then
 	dmsg="[RLABP Debug]: RF: $rf_ptt / Net: $net_ptt"
 	if [ $(cat /tmp/rldc) -gt 0 ] ; then
 		dtr=$(( $(date +"%s") - $(stat -c "%Y" /tmp/rldc) ))
-		dmsg+=", Dynamic: $((($stime * 60) - $dtr)) sec"
+		dmsg+=", DynCTL: $((($stime * 60) - $dtr) / 60) min"
 	fi
 	if [ $(cat /tmp/rlpt) -gt $init_btm ]; then
 		pft=$(( $(date +"%s") - $(stat -c "%Y" /tmp/rlpt) ))
