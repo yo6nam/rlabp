@@ -136,6 +136,10 @@ if [ "$static" = false ] ; then
 		printf '1' | tee /tmp/rldc
 		del_fw_rules; /opt/rolink/scripts/rolink-start.sh
 	fi
+	# Reset timer if RF activity
+	if [ $rf_ptt -gt 0 ] && [ $(cat /tmp/rldc) -eq 1 ] && [ ! -f /tmp/rolink.flg ]; then
+		printf '1' | tee /tmp/rldc
+	fi
 	if [ $(cat /tmp/rldc) -gt 0 ] && [ "$(( $(date +"%s") - $(stat -c "%Y" /tmp/rldc) ))" -gt $(($stime * 60)) ]; then
 		printf '0' | tee /tmp/rldc; /sbin/iptables -I INPUT -s $reflector -j DROP
 	fi
