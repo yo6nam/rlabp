@@ -19,7 +19,7 @@ debug_frq=10		# how often to print debug lines (seconds)
 # Check for SvxLink logs
 if [ ! -f /tmp/svxlink.log ]; then
 	printf '' | tee /tmp/svxlink.log
-	logger -p user.warning "[RLABP]: Protection started, waiting for logs..."
+	logger -p user.warning "[RLABP v20.7.20]: Protection started, waiting for logs..."
 	sleep 15
 fi
 
