@@ -136,7 +136,7 @@ fi
 # Start debug if enabled
 if $debug && [[ -z $dt || $dt -eq $debug_frq ]]; then
 	dmsg="[RLABP Debug]: RF: $rf_ptt / Net: $net_ptt"
-	if [ $(cat /tmp/rldc) -gt 0 ] ; then
+	if [ -f /tmp/rldc ] && [ $(cat /tmp/rldc) -gt 0 ] ; then
 		dtr=$(( $(date +"%s") - $(stat -c "%Y" /tmp/rldc) ))
 		dmsg+=", DynCTL: $(((($stime * 60) - $dtr) / 60)) min"
 	fi
