@@ -138,12 +138,12 @@ if $debug && [[ -z $dt || $dt -eq $debug_frq ]]; then
 	dmsg="[RLABP Debug]: RF: $rf_ptt / Net: $net_ptt"
 	if [ $(cat /tmp/rldc) -gt 0 ] ; then
 		dtr=$(( $(date +"%s") - $(stat -c "%Y" /tmp/rldc) ))
-		dmsg+=", DynCTL: $((($stime * 60) - $dtr) / 60) min"
+		dmsg+=", DynCTL: $(((($stime * 60) - $dtr) / 60)) min"
 	fi
 	if [ $(cat /tmp/rlpt) -gt $init_btm ]; then
 		pft=$(( $(date +"%s") - $(stat -c "%Y" /tmp/rlpt) ))
 		dmsg+=", Ban time: $((($(cat /tmp/rlpt) * 60) / 60)) min"
-		dmsg+=", Penalty factor reset: [$(( $pf_reset - $pft ))]"
+		dmsg+=", Penalty reset: $((($pf_reset - $pft) / 60)) min"
 	fi
 	if [ -f /tmp/rolink.flg ]; then
 		flt=$(( $(date +"%s") - $(stat -c "%Y" /tmp/rolink.flg) ))
