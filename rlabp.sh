@@ -19,7 +19,7 @@ debug_frq=10		# how often to print debug lines (seconds)
 # Check for SvxLink logs
 if [ ! -f /tmp/svxlink.log ]; then
 	printf '' | tee /tmp/svxlink.log
-	logger -p user.warning "[RLABP v20.7.20]: Protection started, waiting for logs..."
+	logger -p user.warning "[RLABP v31.7.20]: Protection started, waiting for logs..."
 	sleep 15
 fi
 
@@ -42,18 +42,11 @@ bantime=$(($(cat /tmp/rlpt) * 60))
 if [ $rf_ptt -gt $max_rf_ptt ]; then abuse=$(($rf_ptt)); fi
 
 # Check for voter file corruption
-function voter_en {
-	if pgrep -x "svxlink" >/dev/null; then
-		if [ -e /tmp/voter ] && [ ! -L /tmp/voter ]; then
-			rm -f /tmp/voter
-			/opt/rolink/scripts/rolink-start.sh
-			sleep 1
-		fi
-		echo "ENABLE RxLocal" > /tmp/voter
-	elif [ -e /tmp/voter ] && [ ! -L /tmp/voter ]; then
-		rm -f /tmp/voter
-	fi
-}
+if pgrep -x "svxlink" >/dev/null && [ ! -L /tmp/voter ]; then
+	rm -f /tmp/voter
+	sleep 1
+	/opt/rolink/scripts/rolink-start.sh
+fi
 
 # Delete blocking rules
 function del_fw_rules {
@@ -95,7 +88,7 @@ elif [ "$1" = "0" ]; then
 	logger -p user.alert "$etmsg switching to [NORMAL-OPERATION]."
 	del_fw_rules; printf '1' | tee /tmp/rldc;
 	rm -f /tmp/rolink.flg; printf $init_btm | tee /tmp/rlpt; printf '' | tee /tmp/svxlink.log
-	voter_en
+	echo "ENABLE RxLocal" > /tmp/voter
 	exit 1
 fi
 
@@ -117,7 +110,7 @@ fi
 # Reset timers & increment the penalty by $pf value
 if [ -f /tmp/rolink.flg ] && [ "$(( $(date +"%s") - $(stat -c "%Y" /tmp/rolink.flg) ))" -gt $bantime ]; then
 	rm -f /tmp/rolink.flg; printf '' | tee /tmp/svxlink.log
-	del_fw_rules; voter_en
+	del_fw_rules; echo "ENABLE RxLocal" > /tmp/voter
 	t=$(cat /tmp/rlpt)
 	echo $([ $t = $init_btm ] && echo $(($t - $init_btm + $pf)) || echo $(($t + $pf))) > /tmp/rlpt
 fi
@@ -142,6 +135,7 @@ if [ "$static" = false ] ; then
 	fi
 	if [ $(cat /tmp/rldc) -gt 0 ] && [ "$(( $(date +"%s") - $(stat -c "%Y" /tmp/rldc) ))" -gt $(($stime * 60)) ]; then
 		printf '0' | tee /tmp/rldc; /sbin/iptables -I INPUT -s $reflector -j DROP
+		logger "[RLABP Debug]: Dynamic timer expired. Disconnecting..."
 	fi
 fi
 
