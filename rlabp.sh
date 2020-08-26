@@ -7,6 +7,7 @@ max_rf_ptt=4		# RF side
 max_net_ptt=8		# Network side
 reflector=reflector.439100.ro,rolink.rolink-net.ro,svx.dstar-yo.ro
 static=true		# false for dynamic connection to reflector (activates on PTT)
+relax=false		# disable the Network side protection on special events
 stime=30		# How many minutes to remain connected to the reflector?
 init_btm=1		# Ban time value (minutes) for automatic triggered events
 ext_trig_btm=10		# Ban time value (minutes) for external triggered events
@@ -19,7 +20,7 @@ debug_frq=10		# how often to print debug lines (seconds)
 # Check for SvxLink logs
 if [ ! -f /tmp/svxlink.log ]; then
 	printf '' | tee /tmp/svxlink.log
-	logger -p user.warning "[RLABP v31.7.20]: Protection started, waiting for logs..."
+	logger -p user.warning "[RLABP v27.8.20]: Protection started, waiting for logs..."
 	sleep 15
 fi
 
@@ -56,6 +57,13 @@ function del_fw_rules {
 	done
 	if $debug && [ ! -z $fr ];then logger "[RLABP Debug]: $fr firewall rule(s) found and deleted."; fi
 }
+
+# Relax on special events
+if [ "$relax" = true ] && [ "$(date +%a)" = "Sun" ]; then
+	if [[ "$(date +%H:%M)" > "17:00" ]] || [[ "$(date +%H:%M)" < "20:00" ]]; then
+		net_ptt=0
+	fi
+fi
 
 # External triggers
 etmsg="External trigger,"
