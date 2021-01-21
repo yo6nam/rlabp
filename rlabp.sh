@@ -3,24 +3,25 @@
 # https://github.com/yo6nam/rlabp
 
 # Set your options below
-max_rf_ptt=4		# RF side
-max_net_ptt=8		# Network side
+max_rf_ptt=2		# Max PTTs from RF side
+max_net_ptt=8		# Max PTTs from Network side
 reflector=reflector.439100.ro,rolink.rolink-net.ro,svx.dstar-yo.ro
+rname=RxLocal		# Name of the receiver linked to the Voter section
 static=true		# false for dynamic connection to reflector (activates on PTT)
 relax=false		# disable the Network side protection on special events
-stime=30		# How many minutes to remain connected to the reflector?
-init_btm=1		# Ban time value (minutes) for automatic triggered events
-ext_trig_btm=10		# Ban time value (minutes) for external triggered events
-pf=5			# Increase ban time after each recurring abuse with how many minutes?
-pf_reset=3600		# Reset the penalty factor to 1 after how many seconds?
-run_as=svxlink		# change to root where needed
+stime=60		# How many minutes to remain connected to the reflector?
+init_btm=1		# Ban time value (minutes) for automatic triggered events (first warning)
+ext_trig_btm=30	# Ban time value (minutes) for external triggered events
+pf=15			# Increase ban time after each recurring abuse with how many minutes?
+pf_reset=10800	# Reset the penalty factor after how many seconds?
+run_as=svxlink	# Change to root where needed (svxlink v1.7+)
 debug=false		# Print debug information
-debug_frq=10		# how often to print debug lines (seconds)
+debug_frq=10	# how often to print debug lines (seconds)
 
 # Check for SvxLink logs
 if [ ! -f /tmp/svxlink.log ]; then
 	printf '' | tee /tmp/svxlink.log
-	logger -p user.warning "[RLABP v27.8.20]: Protection started, waiting for logs..."
+	logger -p user.warning "[RLABP v21.1.21]: Protection started, waiting for logs..."
 	sleep 15
 fi
 
@@ -28,7 +29,7 @@ fi
 while true; do
 
 # Process the svxlink.log
-rf_ptt=$(awk -v d1="$(date --date="-20 sec" "+%Y-%m-%d %H:%M:%S:")" \
+rf_ptt=$(awk -v d1="$(date --date="-12 sec" "+%Y-%m-%d %H:%M:%S:")" \
 -v d2="$(date "+%Y-%m-%d %H:%M:%S:")" '$0 > d1 && $0 < d2 || $0 ~ d2' \
 /tmp/svxlink.log | grep -c "OPEN")
 net_ptt=$(awk -v d1="$(date --date="-30 sec" "+%Y-%m-%d %H:%M:%S:")" \
@@ -58,7 +59,7 @@ function del_fw_rules {
 	if $debug && [ ! -z $fr ];then logger "[RLABP Debug]: $fr firewall rule(s) found and deleted."; fi
 }
 
-# Relax on special events
+# Relax on special events (QTC)
 if [ "$relax" = true ] && [ "$(date +%a)" = "Sun" ]; then
 	if [[ "$(date +%H:%M)" > "17:00" ]] || [[ "$(date +%H:%M)" < "20:00" ]]; then
 		net_ptt=0
@@ -90,13 +91,13 @@ elif [ "$1" = "2" ]; then
 elif [ "$1" = "1" ]; then
 	logger -p user.alert "$etmsg switching to [TX-ONLY] mode for $ext_trig_btm minutes."
 	touch /tmp/rolink.flg; printf $ext_trig_btm | tee /tmp/rlpt; printf '' | tee /tmp/svxlink.log
-	echo "DISABLE RxLocal" > /tmp/voter
+	echo "DISABLE $rname" > /tmp/voter
 	exit 1
 elif [ "$1" = "0" ]; then
 	logger -p user.alert "$etmsg switching to [NORMAL-OPERATION]."
 	del_fw_rules; printf '1' | tee /tmp/rldc;
 	rm -f /tmp/rolink.flg; printf $init_btm | tee /tmp/rlpt; printf '' | tee /tmp/svxlink.log
-	echo "ENABLE RxLocal" > /tmp/voter
+	echo "ENABLE $rname" > /tmp/voter
 	exit 1
 fi
 
@@ -104,7 +105,7 @@ fi
 if [ $abuse ]; then
 	logger -p user.alert "Abuse from RF detected ($abuse PTTs within 20 seconds). [TX-ONLY] for $((($(cat /tmp/rlpt) * 60) / 60)) minutes."
 	touch /tmp/rolink.flg; printf '' | tee /tmp/svxlink.log
-	echo "DISABLE RxLocal" > /tmp/voter
+	echo "DISABLE $rname" > /tmp/voter
 	unset abuse
 fi
 
@@ -118,7 +119,7 @@ fi
 # Reset timers & increment the penalty by $pf value
 if [ -f /tmp/rolink.flg ] && [ "$(( $(date +"%s") - $(stat -c "%Y" /tmp/rolink.flg) ))" -gt $bantime ]; then
 	rm -f /tmp/rolink.flg; printf '' | tee /tmp/svxlink.log
-	del_fw_rules; echo "ENABLE RxLocal" > /tmp/voter
+	del_fw_rules; echo "ENABLE $rname" > /tmp/voter
 	t=$(cat /tmp/rlpt)
 	echo $([ $t = $init_btm ] && echo $(($t - $init_btm + $pf)) || echo $(($t + $pf))) > /tmp/rlpt
 fi
@@ -170,5 +171,5 @@ fi
 if $debug; then ((dt++)); fi
 
 # End loop
-sleep 1
+sleep 2
 done
