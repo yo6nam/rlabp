@@ -3,9 +3,10 @@
 # https://github.com/yo6nam/rlabp
 
 # Set your options below
-max_rf_ptt=2		# Max PTTs from RF side
+max_rf_ptt=3		# Max PTTs from RF side
 max_net_ptt=8		# Max PTTs from Network side
-reflector=reflector.439100.ro,rolink.rolink-net.ro,svx.dstar-yo.ro
+rf_ptt_tcl=0		# Startup value for TCL detection
+reflector=reflector.rolink-net.ro,rolink.rolink-net.ro,svx.439100.ro
 rname=RxLocal		# Name of the receiver linked to the Voter section
 static=true		# false for dynamic connection to reflector (activates on PTT)
 relax=false		# disable the Network side protection on special events
@@ -21,7 +22,7 @@ debug_frq=10	# how often to print debug lines (seconds)
 # Check for SvxLink logs
 if [ ! -f /tmp/svxlink.log ]; then
 	printf '' | tee /tmp/svxlink.log
-	logger -p user.warning "[RLABP v21.1.21]: Protection started, waiting for logs..."
+	logger -p user.warning "[RLABP v19.4.22]: Protection started, waiting for logs..."
 	sleep 15
 fi
 
@@ -29,12 +30,15 @@ fi
 while true; do
 
 # Process the svxlink.log
-rf_ptt=$(awk -v d1="$(date --date="-12 sec" "+%Y-%m-%d %H:%M:%S:")" \
+rf_ptt=$(awk -v d1="$(date --date="-18 sec" "+%Y-%m-%d %H:%M:%S:")" \
 -v d2="$(date "+%Y-%m-%d %H:%M:%S:")" '$0 > d1 && $0 < d2 || $0 ~ d2' \
 /tmp/svxlink.log | grep -c "OPEN")
 net_ptt=$(awk -v d1="$(date --date="-30 sec" "+%Y-%m-%d %H:%M:%S:")" \
 -v d2="$(date "+%Y-%m-%d %H:%M:%S:")" '$0 > d1 && $0 < d2 || $0 ~ d2' \
 /tmp/svxlink.log | grep -c "Talker stop")
+
+# If TCL detection is used
+[ -f /dev/shm/svx ] && rf_ptt_tcl=$(cat /dev/shm/svx)
 
 # Progressive penalty timer
 if [ ! -f /tmp/rlpt ]; then printf $init_btm | tee /tmp/rlpt; fi
@@ -42,6 +46,7 @@ bantime=$(($(cat /tmp/rlpt) * 60))
 
 # Abuse check / status
 if [ $rf_ptt -gt $max_rf_ptt ]; then abuse=$(($rf_ptt)); fi
+if [ ! $abuse ] && [ $rf_ptt_tcl -gt $max_rf_ptt ]; then abuse=$(($rf_ptt_tcl)); fi
 
 # Check for voter file corruption
 if pgrep -x "svxlink" >/dev/null && [ ! -L /tmp/voter ]; then
@@ -91,20 +96,23 @@ elif [ "$1" = "2" ]; then
 elif [ "$1" = "1" ]; then
 	logger -p user.alert "$etmsg switching to [TX-ONLY] mode for $ext_trig_btm minutes."
 	touch /tmp/rolink.flg; printf $ext_trig_btm | tee /tmp/rlpt; printf '' | tee /tmp/svxlink.log
+	[ -f /dev/shm/svx ] && echo 0 > /dev/shm/svx
 	echo "DISABLE $rname" > /tmp/voter
 	exit 1
 elif [ "$1" = "0" ]; then
 	logger -p user.alert "$etmsg switching to [NORMAL-OPERATION]."
 	del_fw_rules; printf '1' | tee /tmp/rldc;
 	rm -f /tmp/rolink.flg; printf $init_btm | tee /tmp/rlpt; printf '' | tee /tmp/svxlink.log
+	[ -f /dev/shm/svx ] && echo 0 > /dev/shm/svx
 	echo "ENABLE $rname" > /tmp/voter
 	exit 1
 fi
 
 # Disable RX
 if [ $abuse ]; then
-	logger -p user.alert "Abuse from RF detected ($abuse PTTs within 20 seconds). [TX-ONLY] for $((($(cat /tmp/rlpt) * 60) / 60)) minutes."
+	logger -p user.alert "Abuse from RF detected ($abuse PTTs within 18 seconds). [TX-ONLY] for $((($(cat /tmp/rlpt) * 60) / 60)) minutes."
 	touch /tmp/rolink.flg; printf '' | tee /tmp/svxlink.log
+	[ -f /dev/shm/svx ] && echo 0 > /dev/shm/svx
 	echo "DISABLE $rname" > /tmp/voter
 	unset abuse
 fi
@@ -129,6 +137,11 @@ if [ -f /tmp/rlpt ] && [ "$(( $(date +"%s") - $(stat -c "%Y" /tmp/rlpt) ))" -gt 
 	printf $init_btm | tee /tmp/rlpt
 fi
 
+# Reset TCL counter
+if [ -f /dev/shm/svx ] && [ -f /tmp/rlpt ] && [ "$(( $(date +"%s") - $(stat -c "%Y" /dev/shm/svx) ))" -gt 3600 ]; then
+	echo 0 > /dev/shm/svx
+fi
+
 # Dynamic connection to reflector
 if [ "$static" = false ] ; then
 	if [ ! -f /tmp/rldc ]; then
@@ -150,7 +163,7 @@ fi
 
 # Start debug if enabled
 if $debug && [[ -z $dt || $dt -eq $debug_frq ]]; then
-	dmsg="[RLABP Debug]: RF: $rf_ptt / Net: $net_ptt"
+	dmsg="[RLABP Debug]: RF: $rf_ptt / TCL: $rf_ptt_tcl / Net: $net_ptt"
 	if [ "$static" = false ] && [ $(cat /tmp/rldc) -gt 0 ] ; then
 		dtr=$(( $(date +"%s") - $(stat -c "%Y" /tmp/rldc) ))
 		dmsg+=", DynCTL: $(((($stime * 60) - $dtr) / 60)) min"
