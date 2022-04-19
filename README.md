@@ -1,4 +1,4 @@
-# rlabp
+# RoLink Abuse Protection (rlabp)
 Protecţie automată a nodului/reţelei împotriva abuzurilor (sau a problemelor tehnice)
 
 ## Cum functioneaza?
@@ -47,6 +47,12 @@ Dupa instalare nu este nevoie de alte interventii, scriptul fiind instalat ca se
 ~~~
 $systemctl status rlabp
 ~~~
+## Detecţie alternativă (RECOMANDAT!)
+Pentru a detecta abuzurile care nu respectă un tipar de timp, se poate modifica fişierul Logic.tcl  
+Codul care trebuie adaugat se poate extrage din link-ul [Logic.tcl - Diff / RLAbP](https://www.diffchecker.com/om0isE1M)
+
+Notă : Pentru ca detecţia să devină activă, este necesară modificarea variabilei RGR_SOUND_ALWAYS din svxlink.conf  
+RGR_SOUND_ALWAYS=1
 
 ## Ce optiuni pot schimba?
 Majoritatea variabilelor sunt disponibile pentru modificare in primele linii ale scriptului.\
