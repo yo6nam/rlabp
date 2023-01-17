@@ -76,29 +76,29 @@ etmsg="External trigger,"
 if [ "$1" = "s" ]; then
 	logger -p user.alert "$etmsg [SERVICE-MODE]."
 	poff -a; sleep 2 && pon rlcfg
-	exit 1
+	exit 0
 elif [ "$1" = "9" ]; then
 	logger -p user.alert "$etmsg [REBOOT]."
-	reboot -f
-	exit 1
+	reboot
+	exit 0
 elif [ "$1" = "3" ]; then
 	logger -p user.alert "$etmsg [TRAFFIC-BLOCK] for $ext_trig_btm minutes."
 	touch /tmp/rolink.flg; echo $ext_trig_btm > /tmp/rlpt
 	/sbin/iptables -I INPUT -s $reflector -j DROP
 	/opt/rolink/rolink-start.sh
-	exit 1
+	exit 0
 elif [ "$1" = "2" ]; then
 	logger -p user.alert "$etmsg [TRAFFIC-UNBLOCK]."
 	rm -f /tmp/rolink.flg; printf $init_btm | tee /tmp/rlpt; del_fw_rules
 	printf '' | tee /tmp/svxlink.log; printf '1' | tee /tmp/rldc;
 	/opt/rolink/scripts/rolink-start.sh
-	exit 1
+	exit 0
 elif [ "$1" = "1" ]; then
 	logger -p user.alert "$etmsg switching to [TX-ONLY] mode for $ext_trig_btm minutes."
 	touch /tmp/rolink.flg; printf $ext_trig_btm | tee /tmp/rlpt; printf '' | tee /tmp/svxlink.log
 	[ -f /dev/shm/svx ] && echo 0 > /dev/shm/svx
 	echo "DISABLE $rname" > /tmp/voter
-	exit 1
+	exit 0
 elif [ "$1" = "0" ]; then
 	logger -p user.alert "$etmsg switching to [NORMAL-OPERATION]."
 	del_fw_rules; printf '1' | tee /tmp/rldc;
